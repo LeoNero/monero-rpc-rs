@@ -42,7 +42,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-        run: cargo test -- --test-threads 1
+      - run: cargo test -- --test-threads 1
 
   fmt:
     name: Rustfmt
