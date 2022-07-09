@@ -37,6 +37,7 @@ jobs:
         run: |
           sudo apt-get install -y docker-compose
           cd tests
+          docker-compose down -v
           docker-compose up -d
           cd ..
       - uses: actions-rs/toolchain@v1
