@@ -18,13 +18,35 @@ use std::env;
 use std::str::FromStr;
 
 #[tokio::test]
+async fn function_readme_test() {
+    let tx_id = "7c50844eced8ab78a8f26a126fbc1f731134e0ae3e6f9ba0f205f98c1426ff60".to_string();
+    let daemon_client =
+        monero_rpc::RpcClient::new("http://node.monerooutreach.org:18081".to_string());
+    let daemon = daemon_client.daemon_rpc();
+    let mut fixed_hash: [u8; 32] = [0; 32];
+    hex::decode_to_slice(tx_id, &mut fixed_hash).unwrap();
+    let tx = daemon
+        .get_transactions(vec![fixed_hash.into()], Some(true), Some(true))
+        .await;
+    println!("tx {:?}", tx);
+    println!(
+        "unlock time: {:?}",
+        serde_json::from_str::<monero_rpc::JsonTransaction>(&tx.unwrap().txs_as_json.unwrap()[0])
+    );
+    assert!(false);
+}
+
+#[tokio::test]
 async fn functional_daemon_test() {
     let addr_str = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge";
     let (regtest, _) = setup_monero();
     let address = Address::from_str(addr_str).unwrap();
     regtest.get_block_template(address, 60).await.unwrap();
     regtest.get_block_count().await.unwrap();
-    regtest.on_get_block_hash(1).await.unwrap();
+
+    let a = regtest.on_get_block_hash(1).await.unwrap();
+    println!("{:?}", a);
+
     regtest
         .get_block_header(monero_rpc::GetBlockHeaderSelector::Last)
         .await

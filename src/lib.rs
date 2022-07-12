@@ -17,10 +17,10 @@
 //! ## Usage
 //!
 //! Create the base [`RpcClient`] and use the methods [`RpcClient::daemon`],
-//! [`RpcClient::daemon_rpc`], or [`RpcClient::wallet`] to retreive the specialized RPC client.
+//! [`RpcClient::daemon_rpc`], or [`RpcClient::wallet`] to retrieve the specialized RPC client.
 //!
 //! On a [`DaemonClient`] you can call [`DaemonClient::regtest`] to get a [`RegtestDaemonClient`]
-//! instance that enable RPC call specific to regtest such as
+//! instance that enables RPC calls specific to regtest such as
 //! [`RegtestDaemonClient::generate_blocks`].
 //!
 //! ```rust
@@ -1131,5 +1131,58 @@ impl WalletClient {
         let minor = version.version - (major << 16);
 
         Ok((u16::try_from(major)?, u16::try_from(minor)?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rpc_params_array() {
+        let mut array = once(json!(false));
+        let rpc_params_array = RpcParams::array(array.clone());
+
+        if let RpcParams::Array(mut rpc_boxed_array) = rpc_params_array {
+            assert_eq!(rpc_boxed_array.next(), array.next());
+            assert_eq!(rpc_boxed_array.next(), None);
+            assert_eq!(array.next(), None);
+        } else {
+            unreachable!();
+        }
+    }
+
+    #[test]
+    fn rpc_params_map() {
+        let map = once(("it is false", json!(false)));
+        let rpc_params_map = RpcParams::map(map.clone());
+
+        let mut map = map.map(|(k, v)| (k.to_string(), v));
+
+        if let RpcParams::Map(mut boxed_map) = rpc_params_map {
+            assert_eq!(boxed_map.next(), map.next());
+            assert_eq!(boxed_map.next(), None);
+            assert_eq!(map.next(), None);
+        } else {
+            unreachable!();
+        }
+    }
+
+    #[test]
+    fn from_rpc_params_for_params() {
+        let rpc_param_array = RpcParams::array(once(json!(false)));
+        let rpc_param_map = RpcParams::map(once(("it is false", json!(false))));
+        let rpc_param_none = RpcParams::None;
+
+        assert_eq!(Params::from(rpc_param_none), Params::None);
+        assert_eq!(
+            Params::from(rpc_param_array),
+            Params::Array(vec![json!(false)])
+        );
+
+        let mut serde_json_map = serde_json::map::Map::new();
+        serde_json_map.insert("it is false".to_string(), json!(false));
+
+        assert_eq!(Params::from(rpc_param_map), Params::Map(serde_json_map));
     }
 }
