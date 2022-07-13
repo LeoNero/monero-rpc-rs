@@ -17,8 +17,20 @@ use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 
+fn setup_monero() -> (monero_rpc::RegtestDaemonClient, monero_rpc::WalletClient) {
+    let dhost = env::var("MONERO_DAEMON_HOST").unwrap_or_else(|_| "localhost".into());
+    let daemon_client = monero_rpc::RpcClient::new(format!("http://{}:18081", dhost));
+    let daemon = daemon_client.daemon();
+    let regtest = daemon.regtest();
+    let whost = env::var("MONERO_WALLET_HOST_1").unwrap_or_else(|_| "localhost".into());
+    let wallet_client = monero_rpc::RpcClient::new(format!("http://{}:18083", whost));
+    let wallet = wallet_client.wallet();
+    (regtest, wallet)
+}
+
 #[tokio::test]
 async fn function_readme_test() {
+    assert!(false);
     let tx_id = "7c50844eced8ab78a8f26a126fbc1f731134e0ae3e6f9ba0f205f98c1426ff60".to_string();
     let daemon_client =
         monero_rpc::RpcClient::new("http://node.monerooutreach.org:18081".to_string());
@@ -33,11 +45,11 @@ async fn function_readme_test() {
         "unlock time: {:?}",
         serde_json::from_str::<monero_rpc::JsonTransaction>(&tx.unwrap().txs_as_json.unwrap()[0])
     );
-    assert!(false);
 }
 
 #[tokio::test]
 async fn functional_daemon_test() {
+    assert!(false);
     let addr_str = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge";
     let (regtest, _) = setup_monero();
     let address = Address::from_str(addr_str).unwrap();
@@ -60,6 +72,7 @@ async fn functional_daemon_test() {
 
 #[tokio::test]
 async fn functional_wallet_test() {
+    assert!(false);
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
 
@@ -276,15 +289,4 @@ async fn functional_wallet_test() {
         .await
         .unwrap();
     println!("res: {:?}", res);
-}
-
-fn setup_monero() -> (monero_rpc::RegtestDaemonClient, monero_rpc::WalletClient) {
-    let dhost = env::var("MONERO_DAEMON_HOST").unwrap_or_else(|_| "localhost".into());
-    let daemon_client = monero_rpc::RpcClient::new(format!("http://{}:18081", dhost));
-    let daemon = daemon_client.daemon();
-    let regtest = daemon.regtest();
-    let whost = env::var("MONERO_WALLET_HOST_1").unwrap_or_else(|_| "localhost".into());
-    let wallet_client = monero_rpc::RpcClient::new(format!("http://{}:18083", whost));
-    let wallet = wallet_client.wallet();
-    (regtest, wallet)
 }
