@@ -8,9 +8,9 @@ pub async fn get_block_count(regtest: &RegtestDaemonClient, expected_height: u64
     assert_eq!(count.get(), expected_height);
 }
 
-pub async fn on_get_block_hash(regtest: &RegtestDaemonClient, height: u64, expected_hash: &str) {
+pub async fn on_get_block_hash(regtest: &RegtestDaemonClient, height: u64, expected_hash: BlockHash) {
     let block_hash = regtest.on_get_block_hash(height).await.unwrap();
-    assert_eq!(block_hash, BlockHash::from_str(expected_hash).unwrap());
+    assert_eq!(block_hash, expected_hash);
 }
 
 pub async fn on_get_block_hash_error_invalid_height(regtest: &RegtestDaemonClient, height: u64) {

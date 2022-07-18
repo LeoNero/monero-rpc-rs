@@ -460,7 +460,8 @@ impl RegtestDaemonClient {
                 RpcParams::map(params),
             )
             .await?
-            .into_inner().into())
+            .into_inner()
+            .into())
     }
 }
 

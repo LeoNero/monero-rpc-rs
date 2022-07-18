@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use monero::{Address, Amount, KeyPair, Network, PrivateKey};
+use monero_rpc::BlockHash;
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
@@ -41,7 +42,6 @@ fn setup_monero() -> (
     (regtest, daemon_rpc, wallet)
 }
 
-// TODO regtest.on_get_block_hash success after generate_blocks
 // TODO regtest.get_block_template success
 // TODO regtest.get_block_template error wallet_address
 // TODO regtest.get_block_template error reserve_size
@@ -149,7 +149,8 @@ async fn empty_blockchain() {
     regtest_test::on_get_block_hash(
         &regtest,
         0,
-        "418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3",
+        BlockHash::from_str("418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3")
+            .unwrap(),
     )
     .await;
 }
@@ -177,6 +178,13 @@ async fn non_empty_blockchain() {
 
     regtest_test::on_get_block_hash_error_invalid_height(&regtest, generate_blocks_res.height + 1)
         .await;
+
+    regtest_test::on_get_block_hash(
+        &regtest,
+        generate_blocks_res.height,
+        *generate_blocks_res.blocks.unwrap().last().unwrap(),
+    )
+    .await;
 }
 
 /*
