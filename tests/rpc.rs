@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 use hex::FromHex;
 use monero::{Address, Amount, KeyPair, Network, PrivateKey};
-use monero_rpc::{BlockHash, BlockTemplate, HashString};
+use monero_rpc::{BlockHash, BlockHeaderResponse, BlockTemplate, HashString};
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
@@ -43,15 +44,8 @@ fn setup_monero() -> (
     (regtest, daemon_rpc, wallet)
 }
 
-// TODO regtest.get_block_header success Last
-// TODO regtest.get_block_header success Hash
-// TODO regtest.get_block_header error Hash
-// TODO regtest.get_block_header success Height
-// TODO regtest.get_block_header error Height
-// TODO regtest.get_block_headers_range success
-// TODO regtest.get_block_headers_range error
-//
-// With no transactions and with transactions
+// With no transactions in array, with transactions in array, with non-existent txs, with invalid
+// txs hashes
 // TODO daemon_rpc.get_transactions success decode_as_json=true
 // TODO daemon_rpc.get_transactions success decode_as_json=false
 // TODO daemon_rpc.get_transactions success decode_as_json=None
@@ -140,15 +134,11 @@ async fn basic_wallet_test() {
 async fn empty_blockchain() {
     let (regtest, daemon_rpc, wallet) = setup_monero();
 
+    let genesis_block_hash = common::get_genesis_block_hash();
+
     regtest_test::get_block_count(&regtest, 1).await;
     regtest_test::on_get_block_hash_error_invalid_height(&regtest, 10).await;
-    regtest_test::on_get_block_hash(
-        &regtest,
-        0,
-        BlockHash::from_str("418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3")
-            .unwrap(),
-    )
-    .await;
+    regtest_test::on_get_block_hash(&regtest, 0, genesis_block_hash).await;
 
     let key_pair_1 = common::get_keypair_1();
     let address_1 = Address::from_keypair(Network::Mainnet, &key_pair_1);
@@ -165,12 +155,7 @@ async fn empty_blockchain() {
             difficulty: 1,
             expected_reward: 35184338534400,
             height: 1,
-            prev_hash: HashString(
-                BlockHash::from_str(
-                    "418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3",
-                )
-                .unwrap(),
-            ),
+            prev_hash: HashString(genesis_block_hash),
             reserved_offset: 126,
             untrusted: false,
         },
@@ -179,18 +164,50 @@ async fn empty_blockchain() {
     regtest_test::get_block_template_error_invalid_reserve_size(&regtest, address_1).await;
     regtest_test::get_block_template_error_invalid_address(&regtest).await;
 
-    // TODO
-    // regtest_test::get_last_block_header(&regtest).await;
-    // regtest_test::get_block_header_with_block_hash(&regtest, genesisblock).await;
-    // regtest_test::get_block_header_with_block_hash_error(&regtest, 000).await;
-    // regtest_test::get_block_header_with_block_hash_error(&regtest, 3142).await;
-    // regtest_test::get_block_header_at_height(&regtest, 0).await;
-    // regtest_test::get_block_header_at_height_error(&regtest, 1).await;
-    //
-    // regtest_test::get_block_headers_range(&regtest, 0..0);
-    // regtest_test::get_block_headers_range(&regtest, 0..4);
-    // regtest_test::get_block_headers_range(&regtest, 1..4);
-    // regtest_test::get_block_headers_range(&regtest, 4..0);
+    let genesis_block_header = BlockHeaderResponse {
+        block_size: 80,
+        depth: 0,
+        difficulty: 1,
+        hash: genesis_block_hash,
+        height: 0,
+        major_version: 1,
+        minor_version: 0,
+        nonce: 10000,
+        num_txes: 0,
+        orphan_status: false,
+        prev_hash: BlockHash::zero(),
+        reward: 17592186044415,
+        // this is used in the assert, since it is the genesis block
+        timestamp: DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc),
+    };
+
+    regtest_test::get_last_block_header(&regtest, genesis_block_header.clone()).await;
+    regtest_test::get_block_header_from_block_hash(
+        &regtest,
+        genesis_block_hash,
+        genesis_block_header.clone(),
+    )
+    .await;
+
+    regtest_test::get_block_header_from_block_hash_error_not_found(
+        &regtest,
+        BlockHash::from_slice(&[0; 32]),
+    )
+    .await;
+    regtest_test::get_block_header_from_block_hash_error_not_found(
+        &regtest,
+        BlockHash::from_slice(&[42; 32]),
+    )
+    .await;
+
+    let current_top_block_height = regtest.get_block_count().await.unwrap().get() - 1;
+    regtest_test::get_block_header_at_height(&regtest, 0, genesis_block_header.clone()).await;
+    regtest_test::get_block_header_at_height_error(&regtest, 10, current_top_block_height).await;
+
+    regtest_test::get_block_headers_range(&regtest, 0..=0, vec![genesis_block_header]).await;
+    regtest_test::get_block_headers_range_error(&regtest, 0..=4).await;
+    regtest_test::get_block_headers_range_error(&regtest, 2..=4).await;
+    regtest_test::get_block_headers_range_error(&regtest, 4..=0).await;
 }
 
 async fn non_empty_blockchain() {
@@ -205,24 +222,69 @@ async fn non_empty_blockchain() {
     let address_1 = Address::from_keypair(Network::Mainnet, &key_pair_1);
     let generate_blocks_res = regtest_test::generate_blocks(&regtest, 10, address_1).await;
 
+    let last_two_added_blocks: Vec<BlockHash> = generate_blocks_res
+        .blocks
+        .unwrap()
+        .into_iter()
+        .rev()
+        .take(2)
+        .collect();
+    let last_added_block_hash = last_two_added_blocks[0];
+    let last_but_one_added_block_hash = last_two_added_blocks[1];
+
     regtest_test::on_get_block_hash_error_invalid_height(&regtest, generate_blocks_res.height + 1)
         .await;
-    regtest_test::on_get_block_hash(
+    regtest_test::on_get_block_hash(&regtest, generate_blocks_res.height, last_added_block_hash)
+        .await;
+
+    let last_added_block_header = BlockHeaderResponse {
+        block_size: 85,
+        depth: 0,
+        difficulty: 1,
+        hash: last_added_block_hash,
+        height: regtest.get_block_count().await.unwrap().get() - 1,
+        major_version: 16,
+        minor_version: 16,
+        nonce: 0,
+        num_txes: 0,
+        orphan_status: false,
+        prev_hash: last_but_one_added_block_hash,
+        reward: 35183734559807,
+        // this is not used in the assert, so use any date
+        timestamp: DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc),
+    };
+    regtest_test::get_last_block_header(&regtest, last_added_block_header.clone()).await;
+    regtest_test::get_block_header_from_block_hash(
         &regtest,
-        generate_blocks_res.height,
-        *generate_blocks_res.blocks.unwrap().last().unwrap(),
+        last_added_block_hash,
+        last_added_block_header.clone(),
     )
     .await;
 
-    // TODO
-    // regtest_test::get_last_block_header(&regtest).await;
-    // regtest_test::get_block_header_with_block_hash(&regtest, *generate_blocks_res.blocks().unwrap().last().unwrap()).await;
-    // regtest_test::get_block_header_with_block_hash_error(&regtest, 3142).await;
-    // regtest_test::get_block_header_at_height(&regtest, u64::10).await;
-    // regtest_test::get_block_header_at_height_error(&regtest, u64::MAX).await;
-    //
-    // regtest_test::get_block_headers_range(&regtest, 0..4);
-    // regtest_test::get_block_headers_range(&regtest, 1..4);
+    let current_top_block_height = regtest.get_block_count().await.unwrap().get() - 1;
+
+    regtest_test::get_block_header_at_height(&regtest, 10, last_added_block_header).await;
+    regtest_test::get_block_header_at_height_error(&regtest, u64::MAX, current_top_block_height)
+        .await;
+
+    let last_block_header = regtest
+        .get_block_header(monero_rpc::GetBlockHeaderSelector::Height(
+            current_top_block_height,
+        ))
+        .await
+        .unwrap();
+    let last_but_one_block_header = regtest
+        .get_block_header(monero_rpc::GetBlockHeaderSelector::Height(
+            current_top_block_height - 1,
+        ))
+        .await
+        .unwrap();
+    regtest_test::get_block_headers_range(
+        &regtest,
+        9..=10,
+        vec![last_but_one_block_header, last_block_header],
+    )
+    .await;
 
     let block_template = regtest.get_block_template(address_1, 0).await.unwrap();
     regtest_test::submit_block(&regtest, block_template.blocktemplate_blob).await;

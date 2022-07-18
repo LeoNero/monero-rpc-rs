@@ -1,9 +1,12 @@
-use std::str::FromStr;
+use std::ops::RangeInclusive;
 
+use chrono::{DateTime, NaiveDate, Utc};
 use monero::{Address, Network};
 use monero_rpc::{
-    BlockHash, BlockTemplate, GenerateBlocksResponse, HashString, RegtestDaemonClient,
+    BlockHash, BlockHeaderResponse, BlockTemplate, GenerateBlocksResponse, HashString,
+    RegtestDaemonClient,
 };
+use serde::Deserialize;
 
 use crate::common;
 
@@ -186,4 +189,128 @@ pub async fn submit_block_error_block_not_accepted(regtest: &RegtestDaemonClient
         .await
         .unwrap_err();
     assert_eq!(res_err.to_string(), "Server error: Block not accepted");
+}
+
+async fn test_get_block_header(
+    regtest: &RegtestDaemonClient,
+    block_header: BlockHeaderResponse,
+    expected_block_header: BlockHeaderResponse,
+) {
+    #[derive(Debug, PartialEq, Deserialize)]
+    struct Helper {
+        block_size: u64,
+        depth: u64,
+        difficulty: u64,
+        hash: BlockHash,
+        height: u64,
+        major_version: u64,
+        minor_version: u64,
+        nonce: u32,
+        num_txes: u64,
+        orphan_status: bool,
+        prev_hash: BlockHash,
+        reward: u64,
+    }
+
+    if block_header.height == 0 {
+        assert_eq!(block_header.timestamp, expected_block_header.timestamp);
+    } else {
+        let start_2022_date = NaiveDate::from_ymd(2022, 1, 1).and_hms(0, 0, 0);
+        let start_2022_date = DateTime::<Utc>::from_utc(start_2022_date, Utc);
+        assert!(block_header.timestamp >= start_2022_date);
+    }
+
+    let v = serde_json::to_value(&block_header).unwrap();
+    let helper_block_header: Helper = serde_json::from_value(v).unwrap();
+
+    let v = serde_json::to_value(&expected_block_header).unwrap();
+    let helper_expected_block_header: Helper = serde_json::from_value(v).unwrap();
+
+    assert_eq!(helper_block_header, helper_expected_block_header);
+}
+
+pub async fn get_last_block_header(
+    regtest: &RegtestDaemonClient,
+    expected_block_header: BlockHeaderResponse,
+) {
+    let block_header = regtest
+        .get_block_header(monero_rpc::GetBlockHeaderSelector::Last)
+        .await
+        .unwrap();
+    test_get_block_header(regtest, block_header, expected_block_header).await;
+}
+
+pub async fn get_block_header_from_block_hash(
+    regtest: &RegtestDaemonClient,
+    block_hash: BlockHash,
+    expected_block_header: BlockHeaderResponse,
+) {
+    let block_header = regtest
+        .get_block_header(monero_rpc::GetBlockHeaderSelector::Hash(block_hash))
+        .await
+        .unwrap();
+    test_get_block_header(regtest, block_header, expected_block_header).await;
+}
+
+pub async fn get_block_header_from_block_hash_error_not_found(
+    regtest: &RegtestDaemonClient,
+    block_hash: BlockHash,
+) {
+    let block_header_err = regtest
+        .get_block_header(monero_rpc::GetBlockHeaderSelector::Hash(block_hash))
+        .await
+        .unwrap_err();
+    assert_eq!(
+        block_header_err.to_string(),
+        format!(
+            "Server error: Internal error: can't get block by hash. Hash = {:x}.",
+            block_hash
+        )
+    );
+}
+
+pub async fn get_block_header_at_height(
+    regtest: &RegtestDaemonClient,
+    height: u64,
+    expected_block_header: BlockHeaderResponse,
+) {
+    let block_header = regtest
+        .get_block_header(monero_rpc::GetBlockHeaderSelector::Height(height))
+        .await
+        .unwrap();
+    test_get_block_header(regtest, block_header, expected_block_header).await;
+}
+
+pub async fn get_block_header_at_height_error(
+    regtest: &RegtestDaemonClient,
+    height: u64,
+    current_top_block_height: u64,
+) {
+    let block_header_err = regtest
+        .get_block_header(monero_rpc::GetBlockHeaderSelector::Height(height))
+        .await
+        .unwrap_err();
+    assert_eq!(
+        block_header_err.to_string(),
+        format!(
+            "Server error: Requested block height: {height} greater than current top block height: {current_top_block_height}"
+        )
+    );
+}
+
+pub async fn get_block_headers_range(
+    regtest: &RegtestDaemonClient,
+    range: RangeInclusive<u64>,
+    expected_block_headers: Vec<BlockHeaderResponse>,
+) {
+    let (block_headers, _) = regtest.get_block_headers_range(range).await.unwrap();
+    assert_eq!(block_headers, expected_block_headers);
+}
+
+pub async fn get_block_headers_range_error(
+    regtest: &RegtestDaemonClient,
+    range: RangeInclusive<u64>,
+) {
+    let block_headers_err = regtest.get_block_headers_range(range).await.unwrap_err();
+    assert_eq!(block_headers_err.to_string(), "Server error: Invalid start/end heights.");
 }
