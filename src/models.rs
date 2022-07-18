@@ -15,7 +15,7 @@
 use crate::util::*;
 use chrono::prelude::*;
 use monero::{cryptonote::hash::Hash as CryptoNoteHash, util::address::PaymentId, Address};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, num::NonZeroU64};
 
 macro_rules! hash_type {
@@ -114,6 +114,30 @@ pub struct BlockHeaderResponse {
     pub prev_hash: BlockHash,
     pub reward: u64,
     pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct GenerateBlocksResponseR {
+    pub height: u64,
+    pub blocks: Option<Vec<HashString<BlockHash>>>,
+}
+
+/// Return type of regtest daemon RPC `generate_blocks`
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GenerateBlocksResponse {
+    pub height: u64,
+    pub blocks: Option<Vec<BlockHash>>,
+}
+
+impl From<GenerateBlocksResponseR> for GenerateBlocksResponse {
+    fn from(v: GenerateBlocksResponseR) -> Self {
+        let GenerateBlocksResponseR { height, blocks } = v;
+
+        Self {
+            height,
+            blocks: blocks.map(|vec| vec.into_iter().map(|b| b.0).collect()),
+        }
+    }
 }
 
 /// Return type of daemon RPC `get_transactions`.
@@ -574,5 +598,10 @@ mod tests {
 
         assert_de_tokens(&confirmed, &[Token::U64(10)]);
         assert_de_tokens(&in_pool, &[Token::U64(0)]);
+    }
+
+    #[test]
+    fn generate_blocks_response_from_generate_blocks_response_r() {
+        assert!(false);
     }
 }

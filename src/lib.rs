@@ -133,7 +133,7 @@ impl RemoteCaller {
         let client = self.http_client.clone();
         let uri = format!("{}/{}", &self.addr, method);
 
-        let json_params: jsonrpc_core::types::params::Params = params.into();
+        let json_params: Params = params.into();
 
         trace!(
             "Sending daemon RPC call: {:?}, with params {:?}",
@@ -199,7 +199,7 @@ impl RpcClient {
     }
 
     /// Transform the client into the specialized `DaemonClient` that interacts with JSON RPC
-    /// Methods on daemon.
+    /// methods on daemon.
     pub fn daemon(self) -> DaemonClient {
         let Self { inner } = self;
         DaemonClient { inner }
@@ -277,13 +277,23 @@ impl DaemonClient {
 
     /// Look up a block's hash by its height.
     pub async fn on_get_block_hash(&self, height: u64) -> anyhow::Result<BlockHash> {
-        self.inner
+        let res = self
+            .inner
             .request::<HashString<BlockHash>>(
                 "on_get_block_hash",
                 RpcParams::array(once(height.into())),
             )
             .await
-            .map(|v| v.0)
+            .map(|v| v.0)?;
+
+        // see https://github.com/monero-ecosystem/monero-rpc-rs/issues/58 for rationality
+        if res == BlockHash::from_slice(&[0; 32]) {
+            Err(anyhow::Error::msg(format!(
+                "Invalid height {height} supplied."
+            )))
+        } else {
+            Ok(res)
+        }
     }
 
     /// Get a block template on which mining a new block.
@@ -432,12 +442,7 @@ impl RegtestDaemonClient {
         &self,
         amount_of_blocks: u64,
         wallet_address: Address,
-    ) -> anyhow::Result<u64> {
-        #[derive(Deserialize)]
-        struct Rsp {
-            height: u64,
-        }
-
+    ) -> anyhow::Result<GenerateBlocksResponse> {
         let params = empty()
             .chain(once((
                 "amount_of_blocks",
@@ -450,10 +455,12 @@ impl RegtestDaemonClient {
 
         Ok(self
             .inner
-            .request::<MoneroResult<Rsp>>("generateblocks", RpcParams::map(params))
+            .request::<MoneroResult<GenerateBlocksResponseR>>(
+                "generateblocks",
+                RpcParams::map(params),
+            )
             .await?
-            .into_inner()
-            .height)
+            .into_inner().into())
     }
 }
 
@@ -1184,5 +1191,15 @@ mod tests {
         serde_json_map.insert("it is false".to_string(), json!(false));
 
         assert_eq!(Params::from(rpc_param_map), Params::Map(serde_json_map));
+    }
+
+    #[test]
+    fn serialize_transfer_type() {
+        assert!(false);
+    }
+
+    #[test]
+    fn ser_der_for_transfer_priority() {
+        assert!(false);
     }
 }

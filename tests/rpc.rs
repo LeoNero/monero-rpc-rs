@@ -12,22 +12,175 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use monero::{Address, Amount};
+use monero::{Address, Amount, KeyPair, Network, PrivateKey};
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 
-fn setup_monero() -> (monero_rpc::RegtestDaemonClient, monero_rpc::WalletClient) {
+mod common;
+use common::{daemon_rpc_test, regtest_test, wallet_test};
+
+fn setup_monero() -> (
+    monero_rpc::RegtestDaemonClient,
+    monero_rpc::DaemonRpcClient,
+    monero_rpc::WalletClient,
+) {
     let dhost = env::var("MONERO_DAEMON_HOST").unwrap_or_else(|_| "localhost".into());
-    let daemon_client = monero_rpc::RpcClient::new(format!("http://{}:18081", dhost));
-    let daemon = daemon_client.daemon();
+
+    let rpc_client = monero_rpc::RpcClient::new(format!("http://{}:18081", dhost));
+    let daemon = rpc_client.daemon();
     let regtest = daemon.regtest();
+
+    let rpc_client = monero_rpc::RpcClient::new(format!("http://{}:18081", dhost));
+    let daemon_rpc = rpc_client.daemon_rpc();
+
     let whost = env::var("MONERO_WALLET_HOST_1").unwrap_or_else(|_| "localhost".into());
-    let wallet_client = monero_rpc::RpcClient::new(format!("http://{}:18083", whost));
-    let wallet = wallet_client.wallet();
-    (regtest, wallet)
+    let rpc_client = monero_rpc::RpcClient::new(format!("http://{}:18083", whost));
+    let wallet = rpc_client.wallet();
+
+    (regtest, daemon_rpc, wallet)
 }
 
+// TODO regtest.on_get_block_hash success after generate_blocks
+// TODO regtest.get_block_template success
+// TODO regtest.get_block_template error wallet_address
+// TODO regtest.get_block_template error reserve_size
+// TODO regtest.submit_block success
+// TODO regtest.submit_block error block_blob_data
+// TODO regtest.get_block_header success Last
+// TODO regtest.get_block_header error Last
+// TODO regtest.get_block_header success Hash
+// TODO regtest.get_block_header error Hash
+// TODO regtest.get_block_header success Height
+// TODO regtest.get_block_header error Height
+// TODO regtest.get_block_headers_range success
+// TODO regtest.get_block_headers_range error
+//
+// TODO daemon_rpc.get_transactions success decode_as_json=true
+// TODO daemon_rpc.get_transactions success decode_as_json=false
+// TODO daemon_rpc.get_transactions success decode_as_json=None
+// TODO daemon_rpc.get_transactions success prune=true
+// TODO daemon_rpc.get_transactions success prune=false
+// TODO daemon_rpc.get_transactions success prune=None
+// TODO daemon_rpc.get_transactions error txs_hashes
+//
+// TODO wallet.generate_from_keys success
+// TODO wallet.generate_from_keys error
+// TODO wallet.create_wallet success
+// TODO wallet.create_wallet error
+// TODO wallet.open_wallet success
+// TODO wallet.open_wallet error -> wrong password
+// TODO wallet.close_wallet success
+// TODO wallet.close_wallet error
+// TODO wallet.get_balance success
+// TODO wallet.get_balance error
+// TODO wallet.get_address success
+// TODO wallet.get_address error
+// TODO wallet.get_address_index success
+// TODO wallet.get_address_index error
+// TODO wallet.create_address success
+// TODO wallet.create_address error
+// TODO wallet.label_address success
+// TODO wallet.label_address error
+// TODO wallet.refresh success
+// TODO wallet.refresh error
+// TODO wallet.get_accounts success
+// TODO wallet.get_accounts error
+// TODO wallet.get_payments success
+// TODO wallet.get_payments error
+// TODO wallet.get_bulk_payments success
+// TODO wallet.get_bulk_payments error
+// TODO wallet.query_key success
+// TODO wallet.query_key error
+// TODO wallet.get_height success
+// TODO wallet.get_height error
+// TODO wallet.sweep_all success
+// TODO wallet.sweep_all error
+// TODO wallet.relay_tx success
+// TODO wallet.relay_tx error
+// TODO wallet.transfer success
+// TODO wallet.transfer error
+// TODO wallet.sign_transfer success
+// TODO wallet.sign_transfer error
+// TODO wallet.submit_transfer success
+// TODO wallet.submit_transfer error
+// TODO wallet.incoming_transfers success
+// TODO wallet.incoming_transfers error
+// TODO wallet.get_transfers success
+// TODO wallet.get_transfers error
+// TODO wallet.get_transfer success
+// TODO wallet.get_transfer error
+// TODO wallet.export_key_images success
+// TODO wallet.export_key_images error
+// TODO wallet.import_key_images success
+// TODO wallet.import_key_images error
+// TODO wallet.check_tx_key success
+// TODO wallet.check_tx_key error
+// TODO wallet.get_version success
+// TODO wallet.get_version error
+
+#[tokio::test]
+async fn main_functional_test() {
+    // run those two functions concurrently since the state one changes does not affect the other
+    let handle1 = tokio::spawn(async {
+        basic_wallet_test().await;
+    });
+    let handle2 = tokio::spawn(async {
+        empty_blockchain().await;
+    });
+
+    handle1.await.unwrap();
+    handle2.await.unwrap();
+
+    non_empty_blockchain().await;
+}
+
+async fn basic_wallet_test() {
+    let (regtest, daemon_rpc, wallet) = setup_monero();
+
+    wallet_test::open_wallet_error_file_not_exists(&wallet).await;
+}
+
+async fn empty_blockchain() {
+    let (regtest, daemon_rpc, wallet) = setup_monero();
+
+    regtest_test::get_block_count(&regtest, 1).await;
+    regtest_test::on_get_block_hash_error_invalid_height(&regtest, 10).await;
+    regtest_test::on_get_block_hash(
+        &regtest,
+        0,
+        "418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3",
+    )
+    .await;
+}
+
+async fn non_empty_blockchain() {
+    let (regtest, daemon_rpc, wallet) = setup_monero();
+
+    let key_pair_1 = KeyPair {
+        view: PrivateKey::from_str(
+            "8ae33e57aee12fa4ad5b42a3ab093d9f3cb7f9be68b112a85f83275bcc5a190b",
+        )
+        .unwrap(),
+        spend: PrivateKey::from_str(
+            "eae5d41a112e14dcd549780a982bb3653c2f86ab1f4e6aa2b13c41f8b893ab04",
+        )
+        .unwrap(),
+    };
+
+    let address_testnet = Address::from_keypair(Network::Testnet, &key_pair_1);
+    regtest_test::generate_blocks_error_invalid_address(&regtest, address_testnet).await;
+    regtest_test::generate_blocks_zero_blocks(&regtest, address_testnet).await;
+
+    let address_1 = Address::from_keypair(Network::Mainnet, &key_pair_1);
+    let generate_blocks_res = regtest_test::generate_blocks(&regtest, 10, address_1).await;
+
+    regtest_test::on_get_block_hash_error_invalid_height(&regtest, generate_blocks_res.height + 1)
+        .await;
+}
+
+/*
+* TODO
 #[tokio::test]
 async fn function_readme_test() {
     assert!(false);
@@ -47,6 +200,7 @@ async fn function_readme_test() {
     );
 }
 
+* TODO
 #[tokio::test]
 async fn functional_daemon_test() {
     assert!(false);
@@ -70,6 +224,7 @@ async fn functional_daemon_test() {
         .unwrap();
 }
 
+* TODO
 #[tokio::test]
 async fn functional_wallet_test() {
     assert!(false);
@@ -289,4 +444,4 @@ async fn functional_wallet_test() {
         .await
         .unwrap();
     println!("res: {:?}", res);
-}
+} */

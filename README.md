@@ -44,6 +44,8 @@ After that, just run `cargo test` as you normally would.
 
 Also, you can run `docker-compose down` to stop and remove the two containers started by `docker-compose up`.
 
+**Important**: the blockchain must be empty when running the tests, i.e. it must have only the genesis block. In `regtest`, the blockchain restarts when `monerod` restarts (as a side note, if you want to keep the blockchain in `regtest` between restarts, you should pass the `--keep-fakechain` flag when starting `monerod`).
+
 ## Releases and Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) and [RELEASING.md](RELEASING.md).
