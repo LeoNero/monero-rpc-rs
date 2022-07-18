@@ -48,7 +48,7 @@ impl<T> MoneroResult<T> {
 }
 
 /// Return type of daemon `get_block_template`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BlockTemplate {
     pub blockhashing_blob: HashString<Vec<u8>>,
     pub blocktemplate_blob: HashString<Vec<u8>>,

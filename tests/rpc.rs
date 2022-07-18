@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use hex::FromHex;
 use monero::{Address, Amount, KeyPair, Network, PrivateKey};
-use monero_rpc::BlockHash;
+use monero_rpc::{BlockHash, BlockTemplate, HashString};
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
@@ -42,13 +43,7 @@ fn setup_monero() -> (
     (regtest, daemon_rpc, wallet)
 }
 
-// TODO regtest.get_block_template success
-// TODO regtest.get_block_template error wallet_address
-// TODO regtest.get_block_template error reserve_size
-// TODO regtest.submit_block success
-// TODO regtest.submit_block error block_blob_data
 // TODO regtest.get_block_header success Last
-// TODO regtest.get_block_header error Last
 // TODO regtest.get_block_header success Hash
 // TODO regtest.get_block_header error Hash
 // TODO regtest.get_block_header success Height
@@ -56,6 +51,7 @@ fn setup_monero() -> (
 // TODO regtest.get_block_headers_range success
 // TODO regtest.get_block_headers_range error
 //
+// With no transactions and with transactions
 // TODO daemon_rpc.get_transactions success decode_as_json=true
 // TODO daemon_rpc.get_transactions success decode_as_json=false
 // TODO daemon_rpc.get_transactions success decode_as_json=None
@@ -153,21 +149,54 @@ async fn empty_blockchain() {
             .unwrap(),
     )
     .await;
+
+    let key_pair_1 = common::get_keypair_1();
+    let address_1 = Address::from_keypair(Network::Mainnet, &key_pair_1);
+
+    regtest_test::get_block_template(
+        &regtest,
+        address_1,
+        10,
+        BlockTemplate {
+            // this field is not deterministic, so set it to empty vec
+            blockhashing_blob: HashString(vec![]),
+            // this field is not deterministic, so set it to empty vec
+            blocktemplate_blob: HashString(vec![]),
+            difficulty: 1,
+            expected_reward: 35184338534400,
+            height: 1,
+            prev_hash: HashString(
+                BlockHash::from_str(
+                    "418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3",
+                )
+                .unwrap(),
+            ),
+            reserved_offset: 126,
+            untrusted: false,
+        },
+    )
+    .await;
+    regtest_test::get_block_template_error_invalid_reserve_size(&regtest, address_1).await;
+    regtest_test::get_block_template_error_invalid_address(&regtest).await;
+
+    // TODO
+    // regtest_test::get_last_block_header(&regtest).await;
+    // regtest_test::get_block_header_with_block_hash(&regtest, genesisblock).await;
+    // regtest_test::get_block_header_with_block_hash_error(&regtest, 000).await;
+    // regtest_test::get_block_header_with_block_hash_error(&regtest, 3142).await;
+    // regtest_test::get_block_header_at_height(&regtest, 0).await;
+    // regtest_test::get_block_header_at_height_error(&regtest, 1).await;
+    //
+    // regtest_test::get_block_headers_range(&regtest, 0..0);
+    // regtest_test::get_block_headers_range(&regtest, 0..4);
+    // regtest_test::get_block_headers_range(&regtest, 1..4);
+    // regtest_test::get_block_headers_range(&regtest, 4..0);
 }
 
 async fn non_empty_blockchain() {
     let (regtest, daemon_rpc, wallet) = setup_monero();
 
-    let key_pair_1 = KeyPair {
-        view: PrivateKey::from_str(
-            "8ae33e57aee12fa4ad5b42a3ab093d9f3cb7f9be68b112a85f83275bcc5a190b",
-        )
-        .unwrap(),
-        spend: PrivateKey::from_str(
-            "eae5d41a112e14dcd549780a982bb3653c2f86ab1f4e6aa2b13c41f8b893ab04",
-        )
-        .unwrap(),
-    };
+    let key_pair_1 = common::get_keypair_1();
 
     let address_testnet = Address::from_keypair(Network::Testnet, &key_pair_1);
     regtest_test::generate_blocks_error_invalid_address(&regtest, address_testnet).await;
@@ -178,13 +207,27 @@ async fn non_empty_blockchain() {
 
     regtest_test::on_get_block_hash_error_invalid_height(&regtest, generate_blocks_res.height + 1)
         .await;
-
     regtest_test::on_get_block_hash(
         &regtest,
         generate_blocks_res.height,
         *generate_blocks_res.blocks.unwrap().last().unwrap(),
     )
     .await;
+
+    // TODO
+    // regtest_test::get_last_block_header(&regtest).await;
+    // regtest_test::get_block_header_with_block_hash(&regtest, *generate_blocks_res.blocks().unwrap().last().unwrap()).await;
+    // regtest_test::get_block_header_with_block_hash_error(&regtest, 3142).await;
+    // regtest_test::get_block_header_at_height(&regtest, u64::10).await;
+    // regtest_test::get_block_header_at_height_error(&regtest, u64::MAX).await;
+    //
+    // regtest_test::get_block_headers_range(&regtest, 0..4);
+    // regtest_test::get_block_headers_range(&regtest, 1..4);
+
+    let block_template = regtest.get_block_template(address_1, 0).await.unwrap();
+    regtest_test::submit_block(&regtest, block_template.blocktemplate_blob).await;
+    regtest_test::submit_block_error_wrong_block_blob(&regtest).await;
+    regtest_test::submit_block_error_block_not_accepted(&regtest).await;
 }
 
 /*

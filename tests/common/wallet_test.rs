@@ -10,4 +10,3 @@ pub async fn open_wallet_error_file_not_exists(wallet: &WalletClient) {
         "Server error: Failed to open wallet"
     );
 }
-
