@@ -60,6 +60,7 @@ fn setup_monero() -> (
 // TODO wallet.create_wallet error
 // TODO wallet.open_wallet success
 // TODO wallet.open_wallet error -> wrong password
+// TODO wallet.open_wallet error -> file not exists
 // TODO wallet.close_wallet success
 // TODO wallet.close_wallet error
 // TODO wallet.get_balance success
@@ -111,28 +112,34 @@ fn setup_monero() -> (
 
 #[tokio::test]
 async fn main_functional_test() {
-    // run those two functions concurrently since the state one changes does not affect the other
+    // TODO uncomment all
+
+    // run those tests functions concurrently since the state one changes does not affect the state
+    // the other one interacts with.
     let handle1 = tokio::spawn(async {
         basic_wallet_test().await;
     });
-    let handle2 = tokio::spawn(async {
-        empty_blockchain().await;
-    });
+    // let handle2 = tokio::spawn(async {
+    //     empty_blockchain().await;
+    //     non_empty_blockchain().await;
+    // });
+    // let handle3 = tokio::spawn(async {
+    //     basic_daemon_rpc_test().await;
+    // });
 
     handle1.await.unwrap();
-    handle2.await.unwrap();
+    // handle2.await.unwrap();
+    // handle3.await.unwrap();
 
-    non_empty_blockchain().await;
+    // all_clients_interaction_test().await;
 }
 
 async fn basic_wallet_test() {
-    let (regtest, daemon_rpc, wallet) = setup_monero();
-
-    wallet_test::open_wallet_error_file_not_exists(&wallet).await;
+    let (_, _, wallet) = setup_monero();
 }
 
 async fn empty_blockchain() {
-    let (regtest, daemon_rpc, wallet) = setup_monero();
+    let (regtest, _, _) = setup_monero();
 
     let genesis_block_hash = common::get_genesis_block_hash();
 
@@ -211,7 +218,7 @@ async fn empty_blockchain() {
 }
 
 async fn non_empty_blockchain() {
-    let (regtest, daemon_rpc, wallet) = setup_monero();
+    let (regtest, _, _) = setup_monero();
 
     let key_pair_1 = common::get_keypair_1();
 
@@ -291,12 +298,17 @@ async fn non_empty_blockchain() {
     regtest_test::submit_block_error_wrong_block_blob(&regtest).await;
     regtest_test::submit_block_error_block_not_accepted(&regtest).await;
 }
+async fn basic_daemon_rpc_test() {
+    let (_, daemon_rpc, _) = setup_monero();
+}
 
-/*
-* TODO
+async fn all_clients_interaction_test() {
+    let (regtest, daemon_rpc, wallet) = setup_monero();
+}
+
+// makes sure the Rust code in the readme works
 #[tokio::test]
-async fn function_readme_test() {
-    assert!(false);
+async fn readme_test() {
     let tx_id = "7c50844eced8ab78a8f26a126fbc1f731134e0ae3e6f9ba0f205f98c1426ff60".to_string();
     let daemon_client =
         monero_rpc::RpcClient::new("http://node.monerooutreach.org:18081".to_string());
@@ -313,34 +325,10 @@ async fn function_readme_test() {
     );
 }
 
-* TODO
-#[tokio::test]
-async fn functional_daemon_test() {
-    assert!(false);
-    let addr_str = "4AdUndXHHZ6cfufTMvppY6JwXNouMBzSkbLYfpAV5Usx3skxNgYeYTRj5UzqtReoS44qo9mtmXCqY45DJ852K5Jv2684Rge";
-    let (regtest, _) = setup_monero();
-    let address = Address::from_str(addr_str).unwrap();
-    regtest.get_block_template(address, 60).await.unwrap();
-    regtest.get_block_count().await.unwrap();
-
-    let a = regtest.on_get_block_hash(1).await.unwrap();
-    println!("{:?}", a);
-
-    regtest
-        .get_block_header(monero_rpc::GetBlockHeaderSelector::Last)
-        .await
-        .unwrap();
-    regtest.generate_blocks(4, address).await.unwrap();
-    regtest
-        .get_block_headers_range(std::ops::RangeInclusive::new(1, 2))
-        .await
-        .unwrap();
-}
-
+/*
 * TODO
 #[tokio::test]
 async fn functional_wallet_test() {
-    assert!(false);
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
 

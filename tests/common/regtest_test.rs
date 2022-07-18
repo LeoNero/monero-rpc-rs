@@ -312,5 +312,8 @@ pub async fn get_block_headers_range_error(
     range: RangeInclusive<u64>,
 ) {
     let block_headers_err = regtest.get_block_headers_range(range).await.unwrap_err();
-    assert_eq!(block_headers_err.to_string(), "Server error: Invalid start/end heights.");
+    assert_eq!(
+        block_headers_err.to_string(),
+        "Server error: Invalid start/end heights."
+    );
 }
