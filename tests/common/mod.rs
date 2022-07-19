@@ -19,6 +19,19 @@ pub fn get_keypair_1() -> KeyPair {
     }
 }
 
+pub fn get_keypair_2() -> KeyPair {
+    KeyPair {
+        view: PrivateKey::from_str(
+            "21dbc3b71b900ac5af0d2e1cc3b279ad3b4a66633d1d8f6653b838f11bd14904",
+        )
+        .unwrap(),
+        spend: PrivateKey::from_str(
+            "90b7a822fbd3d06d04f5ad746300601a85c469ffc21b2fd7281cc43227537209",
+        )
+        .unwrap(),
+    }
+}
+
 pub fn get_genesis_block_hash() -> BlockHash {
     BlockHash::from_str("418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3").unwrap()
 }

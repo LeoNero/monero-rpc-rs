@@ -54,12 +54,11 @@ fn setup_monero() -> (
 // TODO daemon_rpc.get_transactions success prune=None
 // TODO daemon_rpc.get_transactions error txs_hashes
 
+// basic wallet test
 // TODO wallet.generate_from_keys success
 // TODO wallet.generate_from_keys error
-// TODO wallet.create_wallet success
-// TODO wallet.create_wallet error
 // TODO wallet.open_wallet success
-// TODO wallet.open_wallet error -> wrong password
+// TODO wallet.open_wallet error -> wrong password for all wallets so far
 // TODO wallet.open_wallet error -> file not exists
 // TODO wallet.close_wallet success
 // TODO wallet.close_wallet error
@@ -73,11 +72,10 @@ fn setup_monero() -> (
 // TODO wallet.label_address error
 // TODO wallet.get_accounts success
 // TODO wallet.get_accounts error
-// TODO wallet.get_height success
-// TODO wallet.get_height error
 // TODO wallet.get_version success
 // TODO wallet.get_version error
 
+// other wallet test
 // TODO wallet.get_balance success
 // TODO wallet.get_balance error
 // TODO wallet.refresh success
@@ -119,9 +117,7 @@ async fn main_functional_test() {
 
     // run those tests functions concurrently since the state one changes does not affect the state
     // the other one interacts with.
-    let handle1 = tokio::spawn(async {
-        basic_wallet_test().await;
-    });
+    let handle1 = tokio::spawn(basic_wallet_test());
     // let handle2 = tokio::spawn(async {
     //     empty_blockchain().await;
     //     non_empty_blockchain().await;
@@ -139,6 +135,16 @@ async fn main_functional_test() {
 
 async fn basic_wallet_test() {
     let (_, _, wallet) = setup_monero();
+
+    let (wallet_with_pwd, wallet_with_no_pwd, wallet_with_empty_pwd) = tokio::join!(
+        wallet_test::create_wallet_with_password(&wallet, "pwd_farcaster"),
+        wallet_test::create_wallet_with_no_password_parameter(&wallet),
+        wallet_test::create_wallet_with_empty_password(&wallet),
+    );
+    wallet_test::create_wallet_error_already_exists(&wallet, &wallet_with_pwd).await;
+    wallet_test::create_wallet_error_invalid_language(&wallet).await;
+
+    wallet_test::get_version(&wallet).await;
 }
 
 async fn empty_blockchain() {
@@ -332,21 +338,6 @@ async fn readme_test() {
 * TODO
 #[tokio::test]
 async fn functional_wallet_test() {
-    use rand::distributions::Alphanumeric;
-    use rand::{thread_rng, Rng};
-
-    let spend_wallet_name: String = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(15)
-        .map(char::from)
-        .collect();
-    let view_wallet_name: String = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(15)
-        .map(char::from)
-        .collect();
-
-    let (regtest, wallet) = setup_monero();
     match wallet
         .create_wallet(spend_wallet_name.clone(), None, "English".to_string())
         .await
