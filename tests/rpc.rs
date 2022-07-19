@@ -73,7 +73,6 @@ fn setup_monero() -> (
 // TODO wallet.get_accounts success
 // TODO wallet.get_accounts error
 // TODO wallet.get_version success
-// TODO wallet.get_version error
 
 // other wallet test
 // TODO wallet.get_balance success
@@ -382,7 +381,6 @@ async fn functional_wallet_test() {
         .unwrap();
     wallet.get_accounts(None).await.unwrap();
     wallet.get_height().await.unwrap();
-    wallet.get_version().await.unwrap();
 
     regtest.generate_blocks(500, address).await.unwrap();
     wallet.refresh(Some(0)).await.unwrap();
