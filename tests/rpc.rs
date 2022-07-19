@@ -55,8 +55,8 @@ fn setup_monero() -> (
 // TODO daemon_rpc.get_transactions error txs_hashes
 
 // basic wallet test
-// TODO wallet.generate_from_keys success
-// TODO wallet.generate_from_keys error
+// TODO wallet.generate_from_keys success (empty height, valid height, with spend key, without spend key)
+// TODO wallet.generate_from_keys error (wallet already exists, invalid height, invalid address)
 // TODO wallet.open_wallet success
 // TODO wallet.open_wallet error -> wrong password for all wallets so far
 // TODO wallet.open_wallet error -> file not exists
@@ -337,18 +337,6 @@ async fn readme_test() {
 * TODO
 #[tokio::test]
 async fn functional_wallet_test() {
-    match wallet
-        .create_wallet(spend_wallet_name.clone(), None, "English".to_string())
-        .await
-    {
-        Ok(_) => {}
-        Err(err) => {
-            assert_eq!(
-                format!("{}", err),
-                "Server error: Cannot create wallet. Already exists."
-            );
-        }
-    }
     wallet
         .open_wallet(spend_wallet_name.clone(), None)
         .await
