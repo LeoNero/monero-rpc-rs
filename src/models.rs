@@ -123,7 +123,7 @@ pub(crate) struct GenerateBlocksResponseR {
 }
 
 /// Return type of regtest daemon RPC `generate_blocks`
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GenerateBlocksResponse {
     pub height: u64,
     pub blocks: Option<Vec<BlockHash>>,
@@ -602,6 +602,26 @@ mod tests {
 
     #[test]
     fn generate_blocks_response_from_generate_blocks_response_r() {
-        assert!(false);
+        let gbrr = GenerateBlocksResponseR {
+            height: 10,
+            blocks: None,
+        };
+        let expected_gbr = GenerateBlocksResponse {
+            height: 10,
+            blocks: None,
+        };
+        assert_eq!(GenerateBlocksResponse::from(gbrr), expected_gbr);
+
+        let block_hash = BlockHash::zero();
+
+        let gbrr = GenerateBlocksResponseR {
+            height: 10,
+            blocks: Some(vec![HashString(block_hash)]),
+        };
+        let expected_gbr = GenerateBlocksResponse {
+            height: 10,
+            blocks: Some(vec![block_hash]),
+        };
+        assert_eq!(GenerateBlocksResponse::from(gbrr), expected_gbr);
     }
 }
