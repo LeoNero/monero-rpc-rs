@@ -15,7 +15,7 @@
 use crate::util::*;
 use chrono::prelude::*;
 use monero::{cryptonote::hash::Hash as CryptoNoteHash, util::address::PaymentId, Address};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, num::NonZeroU64};
 
 macro_rules! hash_type {
@@ -201,7 +201,7 @@ pub struct BalanceData {
 }
 
 /// Argument type of wallet `transfer`.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TransferPriority {
     Default,
     Unimportant,

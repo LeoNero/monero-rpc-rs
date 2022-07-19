@@ -44,7 +44,7 @@ fn setup_monero() -> (
     (regtest, daemon_rpc, wallet)
 }
 
-// With no transactions in array, with transactions in array, with non-existent txs, with invalid
+// With no transactions in array, with valid transactions in array, with non-existent txs, with invalid
 // txs hashes
 // TODO daemon_rpc.get_transactions success decode_as_json=true
 // TODO daemon_rpc.get_transactions success decode_as_json=false
@@ -53,7 +53,7 @@ fn setup_monero() -> (
 // TODO daemon_rpc.get_transactions success prune=false
 // TODO daemon_rpc.get_transactions success prune=None
 // TODO daemon_rpc.get_transactions error txs_hashes
-//
+
 // TODO wallet.generate_from_keys success
 // TODO wallet.generate_from_keys error
 // TODO wallet.create_wallet success
@@ -63,8 +63,6 @@ fn setup_monero() -> (
 // TODO wallet.open_wallet error -> file not exists
 // TODO wallet.close_wallet success
 // TODO wallet.close_wallet error
-// TODO wallet.get_balance success
-// TODO wallet.get_balance error
 // TODO wallet.get_address success
 // TODO wallet.get_address error
 // TODO wallet.get_address_index success
@@ -73,10 +71,17 @@ fn setup_monero() -> (
 // TODO wallet.create_address error
 // TODO wallet.label_address success
 // TODO wallet.label_address error
-// TODO wallet.refresh success
-// TODO wallet.refresh error
 // TODO wallet.get_accounts success
 // TODO wallet.get_accounts error
+// TODO wallet.get_height success
+// TODO wallet.get_height error
+// TODO wallet.get_version success
+// TODO wallet.get_version error
+
+// TODO wallet.get_balance success
+// TODO wallet.get_balance error
+// TODO wallet.refresh success
+// TODO wallet.refresh error
 // TODO wallet.get_payments success
 // TODO wallet.get_payments error
 // TODO wallet.get_bulk_payments success
@@ -107,8 +112,6 @@ fn setup_monero() -> (
 // TODO wallet.import_key_images error
 // TODO wallet.check_tx_key success
 // TODO wallet.check_tx_key error
-// TODO wallet.get_version success
-// TODO wallet.get_version error
 
 #[tokio::test]
 async fn main_functional_test() {

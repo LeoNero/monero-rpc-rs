@@ -1147,6 +1147,7 @@ impl WalletClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_test::{assert_de_tokens_error, assert_ser_tokens, assert_tokens, Token};
 
     #[test]
     fn rpc_params_array() {
@@ -1198,11 +1199,49 @@ mod tests {
 
     #[test]
     fn serialize_transfer_type() {
-        assert!(false);
+        let transfer_types = vec![
+            TransferType::All,
+            TransferType::Available,
+            TransferType::Unavailable,
+        ];
+        assert_ser_tokens(
+            &transfer_types,
+            &[
+                Token::Seq { len: Some(3) },
+                Token::Str("all"),
+                Token::Str("available"),
+                Token::Str("unavailable"),
+                Token::SeqEnd,
+            ],
+        );
     }
 
     #[test]
     fn ser_der_for_transfer_priority() {
-        assert!(false);
+        let transfer_priorities = vec![
+            TransferPriority::Default,
+            TransferPriority::Unimportant,
+            TransferPriority::Elevated,
+            TransferPriority::Priority,
+        ];
+        assert_tokens(
+            &transfer_priorities,
+            &[
+                Token::Seq { len: Some(4) },
+                Token::U8(0),
+                Token::U8(1),
+                Token::U8(2),
+                Token::U8(3),
+                Token::SeqEnd,
+            ],
+        );
+    }
+
+    #[test]
+    fn der_for_transfer_priority_error() {
+        assert_de_tokens_error::<TransferPriority>(
+            &[Token::U8(4)],
+            "Invalid variant 4, expected 0-3",
+        );
     }
 }
