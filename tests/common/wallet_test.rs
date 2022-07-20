@@ -1,4 +1,4 @@
-use monero_rpc::WalletClient;
+use monero_rpc::{GenerateFromKeysArgs, WalletClient};
 
 fn get_random_name() -> String {
     use rand::distributions::Alphanumeric;
@@ -114,4 +114,29 @@ pub async fn open_wallet_error_wrong_password(
         .await
         .unwrap_err();
     assert_eq!(err.to_string(), "Server error: Failed to open wallet");
+}
+
+pub async fn generate_from_keys(wallet: &WalletClient, args: GenerateFromKeysArgs) {
+    assert!(false);
+}
+
+pub async fn generate_from_keys_error_key_already_used(
+    wallet: &WalletClient,
+    args: GenerateFromKeysArgs,
+) {
+    assert!(false);
+}
+
+pub async fn generate_from_keys_error_filename_already_exists(
+    wallet: &WalletClient,
+    args: GenerateFromKeysArgs,
+) {
+    assert!(false);
+}
+
+pub async fn generate_from_keys_error_invalid_height(
+    wallet: &WalletClient,
+    args: GenerateFromKeysArgs,
+) {
+    assert!(false);
 }
