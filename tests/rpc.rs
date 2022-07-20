@@ -57,11 +57,6 @@ fn setup_monero() -> (
 // basic wallet test
 // TODO wallet.generate_from_keys success (empty height, valid height, with spend key, without spend key)
 // TODO wallet.generate_from_keys error (wallet already exists, invalid height, invalid address)
-// TODO wallet.open_wallet success
-// TODO wallet.open_wallet error -> wrong password for all wallets so far
-// TODO wallet.open_wallet error -> file not exists
-// TODO wallet.close_wallet success
-// TODO wallet.close_wallet error
 // TODO wallet.get_address success
 // TODO wallet.get_address error
 // TODO wallet.get_address_index success
@@ -72,7 +67,6 @@ fn setup_monero() -> (
 // TODO wallet.label_address error
 // TODO wallet.get_accounts success
 // TODO wallet.get_accounts error
-// TODO wallet.get_version success
 
 // other wallet test
 // TODO wallet.get_balance success
@@ -122,12 +116,11 @@ async fn main_functional_test() {
     //     non_empty_blockchain().await;
     // });
     // let handle3 = tokio::spawn(async {
-    //     basic_daemon_rpc_test().await;
+    // basic_daemon_rpc_test().await;
     // });
 
-    handle1.await.unwrap();
-    // handle2.await.unwrap();
-    // handle3.await.unwrap();
+    let res = tokio::try_join!(handle1 /* handle2, handle3*/,);
+    res.unwrap();
 
     // all_clients_interaction_test().await;
 }
@@ -135,15 +128,34 @@ async fn main_functional_test() {
 async fn basic_wallet_test() {
     let (_, _, wallet) = setup_monero();
 
+    wallet_test::get_version(&wallet).await;
+
     let (wallet_with_pwd, wallet_with_no_pwd, wallet_with_empty_pwd) = tokio::join!(
-        wallet_test::create_wallet_with_password(&wallet, "pwd_farcaster"),
+        wallet_test::create_wallet_with_password(&wallet, common::PWD_1),
         wallet_test::create_wallet_with_no_password_parameter(&wallet),
         wallet_test::create_wallet_with_empty_password(&wallet),
     );
     wallet_test::create_wallet_error_already_exists(&wallet, &wallet_with_pwd).await;
     wallet_test::create_wallet_error_invalid_language(&wallet).await;
 
-    wallet_test::get_version(&wallet).await;
+    wallet_test::close_wallet(&wallet).await;
+    wallet_test::close_wallet_error_no_wallet_file(&wallet).await;
+
+    // open same wallet twice
+    wallet_test::open_wallet_with_password(&wallet, &wallet_with_pwd, common::PWD_1).await;
+    wallet_test::open_wallet_with_password(&wallet, &wallet_with_pwd, common::PWD_1).await;
+
+    wallet_test::open_wallet_with_no_or_empty_password(&wallet, &wallet_with_no_pwd).await;
+    wallet_test::open_wallet_with_no_or_empty_password(&wallet, &wallet_with_empty_pwd).await;
+
+    wallet_test::open_wallet_error_filename_invalid(&wallet, "troll_wallet").await;
+    wallet_test::open_wallet_error_wrong_password(&wallet, &wallet_with_pwd, None).await;
+    wallet_test::open_wallet_error_wrong_password(
+        &wallet,
+        &wallet_with_no_pwd,
+        Some("wrong_password :)".to_string()),
+    )
+    .await;
 }
 
 async fn empty_blockchain() {
@@ -306,6 +318,7 @@ async fn non_empty_blockchain() {
     regtest_test::submit_block_error_wrong_block_blob(&regtest).await;
     regtest_test::submit_block_error_block_not_accepted(&regtest).await;
 }
+
 async fn basic_daemon_rpc_test() {
     let (_, daemon_rpc, _) = setup_monero();
 }
@@ -337,13 +350,7 @@ async fn readme_test() {
 * TODO
 #[tokio::test]
 async fn functional_wallet_test() {
-    wallet
-        .open_wallet(spend_wallet_name.clone(), None)
-        .await
-        .unwrap();
-
-    // test closing the wallet again
-    wallet.close_wallet().await.unwrap();
+    // error below happens after closing wallet
     assert_eq!(
         format!(
             "{}",
@@ -352,10 +359,7 @@ async fn functional_wallet_test() {
         "Server error: No wallet file".to_string()
     );
 
-    wallet
-        .open_wallet(spend_wallet_name.clone(), None)
-        .await
-        .unwrap();
+    wallet.open_wallet(spend_wallet_name.clone(), None).await.unwrap();
     wallet.get_balance(1, Some(vec![0])).await.unwrap();
     let address = wallet.get_address(0, Some(vec![0])).await.unwrap().address;
     wallet.get_address_index(address).await.unwrap();
@@ -524,5 +528,4 @@ async fn functional_wallet_test() {
         .sign_transfer(transfer_data.unsigned_txset.0)
         .await
         .unwrap();
-    println!("res: {:?}", res);
 } */

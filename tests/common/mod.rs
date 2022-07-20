@@ -6,6 +6,8 @@ pub mod daemon_rpc_test;
 pub mod regtest_test;
 pub mod wallet_test;
 
+pub const PWD_1: &str = "pwd_farcaster";
+
 pub fn get_keypair_1() -> KeyPair {
     KeyPair {
         view: PrivateKey::from_str(
