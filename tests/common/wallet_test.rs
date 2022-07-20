@@ -69,7 +69,7 @@ pub async fn create_wallet_error_invalid_language(wallet: &WalletClient) {
 }
 
 pub async fn close_wallet(wallet: &WalletClient) {
-    let _ = wallet.close_wallet().await.unwrap();
+    wallet.close_wallet().await.unwrap();
 }
 
 pub async fn close_wallet_error_no_wallet_file(wallet: &WalletClient) {

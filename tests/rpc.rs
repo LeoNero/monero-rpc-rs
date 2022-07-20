@@ -56,7 +56,7 @@ fn setup_monero() -> (
 
 // basic wallet test
 // TODO wallet.generate_from_keys success (empty height, valid height, with spend key, without spend key)
-// TODO wallet.generate_from_keys error (wallet already exists, invalid height, invalid address)
+// TODO wallet.generate_from_keys error (wallet name already exists, wallet keys already exist, invalid height, invalid address)
 // TODO wallet.get_address success
 // TODO wallet.get_address error
 // TODO wallet.get_address_index success

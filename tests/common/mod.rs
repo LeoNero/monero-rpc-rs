@@ -34,6 +34,32 @@ pub fn get_keypair_2() -> KeyPair {
     }
 }
 
+pub fn get_keypair_3() -> KeyPair {
+    KeyPair {
+        view: PrivateKey::from_str(
+            "fb2a79386a470d1743cb867505bdf8045e2d44f012155018096740ea2fbca200",
+        )
+        .unwrap(),
+        spend: PrivateKey::from_str(
+            "a0967c33a4a1b6fbfdd0fba36f0593fa6627462470f9a58c09a532518415320a",
+        )
+        .unwrap(),
+    }
+}
+
+pub fn get_keypair_4() -> KeyPair {
+    KeyPair {
+        view: PrivateKey::from_str(
+            "feedd63638da7fbf433f892888a6d4c325ff7b127bfb01c021c3e7aa93f6c208",
+        )
+        .unwrap(),
+        spend: PrivateKey::from_str(
+            "a03b9c7a6ff4d6722334965811772d1320ce43f52d31ebe971c9f1dcbdbe090b",
+        )
+        .unwrap(),
+    }
+}
+
 pub fn get_genesis_block_hash() -> BlockHash {
     BlockHash::from_str("418015bb9ae982a1975da7d79277c2705727a56894ba0fb246adaabb1f4632e3").unwrap()
 }
