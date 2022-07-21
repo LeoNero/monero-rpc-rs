@@ -29,7 +29,7 @@ pub async fn test() {
             expected_reward: 35184338534400,
             height: 1,
             prev_hash: HashString(genesis_block_hash),
-            reserved_offset: 126,
+            reserved_offset: 185, // may very, so not used inside the test
             untrusted: false,
         },
     )

@@ -123,6 +123,10 @@ pub async fn get_block_template(
     // this field is not deterministic
     res_block_template.blocktemplate_blob = HashString(vec![]);
 
+    // since this may very, we change the response to whatever `expected_block_template` variable
+    // has
+    res_block_template.reserved_offset = expected_block_template.reserved_offset;
+
     assert_eq!(res_block_template, expected_block_template);
 }
 
@@ -192,13 +196,12 @@ pub async fn submit_block_error_block_not_accepted(regtest: &RegtestDaemonClient
 }
 
 async fn test_get_block_header(
-    regtest: &RegtestDaemonClient,
     block_header: BlockHeaderResponse,
     expected_block_header: BlockHeaderResponse,
 ) {
     #[derive(Debug, PartialEq, Deserialize)]
+    // block_size not tested because it varies
     struct Helper {
-        block_size: u64,
         depth: u64,
         difficulty: u64,
         hash: BlockHash,
@@ -237,7 +240,7 @@ pub async fn get_last_block_header(
         .get_block_header(monero_rpc::GetBlockHeaderSelector::Last)
         .await
         .unwrap();
-    test_get_block_header(regtest, block_header, expected_block_header).await;
+    test_get_block_header(block_header, expected_block_header).await;
 }
 
 pub async fn get_block_header_from_block_hash(
@@ -249,7 +252,7 @@ pub async fn get_block_header_from_block_hash(
         .get_block_header(monero_rpc::GetBlockHeaderSelector::Hash(block_hash))
         .await
         .unwrap();
-    test_get_block_header(regtest, block_header, expected_block_header).await;
+    test_get_block_header(block_header, expected_block_header).await;
 }
 
 pub async fn get_block_header_from_block_hash_error_not_found(
@@ -278,7 +281,7 @@ pub async fn get_block_header_at_height(
         .get_block_header(monero_rpc::GetBlockHeaderSelector::Height(height))
         .await
         .unwrap();
-    test_get_block_header(regtest, block_header, expected_block_header).await;
+    test_get_block_header(block_header, expected_block_header).await;
 }
 
 pub async fn get_block_header_at_height_error(
