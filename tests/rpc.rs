@@ -25,16 +25,9 @@ use common::main_tests;
 // TODO daemon_rpc.get_transactions success prune=None
 // TODO daemon_rpc.get_transactions error txs_hashes
 
-// basic wallet test
-// TODO wallet.get_address_index success
-// TODO wallet.create_address success
-// TODO wallet.create_address error
-// TODO wallet.label_address success
-// TODO wallet.label_address error
-// TODO wallet.get_accounts success
-// TODO wallet.get_accounts error
-
 // other wallet test
+// TODO wallet.get_height success
+// TODO wallet.get_height error
 // TODO wallet.get_balance success
 // TODO wallet.get_balance error
 // TODO wallet.refresh success
@@ -45,8 +38,6 @@ use common::main_tests;
 // TODO wallet.get_bulk_payments error
 // TODO wallet.query_key success
 // TODO wallet.query_key error
-// TODO wallet.get_height success
-// TODO wallet.get_height error
 // TODO wallet.sweep_all success
 // TODO wallet.sweep_all error
 // TODO wallet.relay_tx success
@@ -114,19 +105,6 @@ async fn readme_test() {
 * TODO
 #[tokio::test]
 async fn functional_wallet_test() {
-    wallet.open_wallet(spend_wallet_name.clone(), None).await.unwrap();
-    wallet.get_balance(1, Some(vec![0])).await.unwrap();
-    let address = wallet.get_address(0, Some(vec![0])).await.unwrap().address;
-    wallet.get_address_index(address).await.unwrap();
-    wallet
-        .create_address(0, Some("new_label".to_string()))
-        .await
-        .unwrap();
-    wallet
-        .label_address(0, 0, "other_label".to_string())
-        .await
-        .unwrap();
-    wallet.get_accounts(None).await.unwrap();
     wallet.get_height().await.unwrap();
 
     regtest.generate_blocks(500, address).await.unwrap();

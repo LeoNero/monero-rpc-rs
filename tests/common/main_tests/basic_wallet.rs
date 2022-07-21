@@ -1,5 +1,7 @@
-use monero::{Address, Network};
-use monero_rpc::{GenerateFromKeysArgs, AddressData, SubaddressData};
+use std::str::FromStr;
+
+use monero::{cryptonote::subaddress, Address, Network, ViewPair};
+use monero_rpc::{AddressData, GenerateFromKeysArgs, GetAccountsData, GotAccount, SubaddressData};
 
 use crate::common::helpers;
 
@@ -149,4 +151,84 @@ pub async fn test() {
         Address::from_keypair(Network::Testnet, &key_pair_1),
     )
     .await;
+
+    // open a different wallet for the next few tests
+    helpers::wallet::open_wallet_with_password(
+        &wallet,
+        &wallet_creation_from_key_pair_2.0,
+        helpers::PWD_1,
+    )
+    .await;
+
+    let expected_first_new_address = (
+        subaddress::get_subaddress(
+            &ViewPair::from(&key_pair_2),
+            subaddress::Index { major: 0, minor: 1 },
+            Some(Network::Mainnet),
+        ),
+        1,
+    );
+    let first_new_address_for_wallet_from_key_pair_2 =
+        helpers::wallet::create_address(&wallet, 0, None, expected_first_new_address).await;
+
+    let expected_second_new_address = (
+        subaddress::get_subaddress(
+            &ViewPair::from(&key_pair_2),
+            subaddress::Index { major: 0, minor: 2 },
+            Some(Network::Mainnet),
+        ),
+        2,
+    );
+    let second_new_address_for_wallet_from_key_pair_2 = helpers::wallet::create_address(
+        &wallet,
+        0,
+        Some("new_label".to_string()),
+        expected_second_new_address,
+    )
+    .await;
+    helpers::wallet::create_address_error_invalid_account_index(&wallet, 10).await;
+
+    helpers::wallet::label_address(
+        &wallet,
+        0,
+        first_new_address_for_wallet_from_key_pair_2.1,
+        "haha label :)".to_string(),
+    )
+    .await;
+    helpers::wallet::label_address(
+        &wallet,
+        0,
+        second_new_address_for_wallet_from_key_pair_2.1,
+        "".to_string(),
+    )
+    .await;
+
+    helpers::wallet::label_address_error_invalid_account_index(&wallet, 10, 0).await;
+    helpers::wallet::label_address_error_invalid_address_index(&wallet, 0, 10).await;
+
+    let expected_got_account_main_address = GotAccount {
+        account_index: 0,
+        balance: 0,
+        base_address: Address::from_keypair(Network::Mainnet, &key_pair_2),
+        label: Some("Primary account".to_string()),
+        tag: Some("".to_string()),
+        unlocked_balance: 0,
+    };
+    helpers::wallet::get_accounts(
+        &wallet,
+        None,
+        GetAccountsData {
+            subaddress_accounts: vec![expected_got_account_main_address],
+            total_balance: 0,
+            total_unlocked_balance: 0,
+        },
+    )
+    .await;
+    helpers::wallet::get_accounts_error_unregistered_tag(
+        &wallet,
+        "no_account_with this_tag".to_string(),
+    )
+    .await;
+
+    helpers::wallet::close_wallet(&wallet).await;
 }

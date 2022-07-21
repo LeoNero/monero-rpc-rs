@@ -349,7 +349,7 @@ pub struct GenerateFromKeysArgs {
 }
 
 /// Return sub-type of wallet `get_accounts`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GotAccount {
     pub account_index: u64,
     pub balance: u64,
@@ -367,7 +367,7 @@ pub struct RefreshData {
 }
 
 /// Return type of wallet `get_accounts`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetAccountsData {
     pub subaddress_accounts: Vec<GotAccount>,
     pub total_balance: u64,

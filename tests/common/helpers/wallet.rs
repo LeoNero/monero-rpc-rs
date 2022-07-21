@@ -1,5 +1,9 @@
+use std::str::FromStr;
+
 use monero::Address;
-use monero_rpc::{AddressData, GenerateFromKeysArgs, WalletClient, WalletCreation};
+use monero_rpc::{
+    AddressData, GenerateFromKeysArgs, GetAccountsData, WalletClient, WalletCreation,
+};
 
 fn get_random_name() -> String {
     use rand::distributions::Alphanumeric;
@@ -216,4 +220,85 @@ pub async fn get_address_index_error_address_from_another_wallet(
 pub async fn get_address_index_error_invalid_address(wallet: &WalletClient, address: Address) {
     let index_err = wallet.get_address_index(address).await.unwrap_err();
     assert_eq!(index_err.to_string(), "Server error: Invalid address");
+}
+
+pub async fn create_address(
+    wallet: &WalletClient,
+    account_index: u64,
+    label: Option<String>,
+    expected_res: (Address, u64),
+) -> (Address, u64) {
+    let address_created = wallet.create_address(account_index, label).await.unwrap();
+    assert_eq!(address_created, expected_res);
+    address_created
+}
+
+pub async fn create_address_error_invalid_account_index(wallet: &WalletClient, account_index: u64) {
+    let create_address_err = wallet
+        .create_address(account_index, None)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        create_address_err.to_string(),
+        "Server error: account index is out of bound"
+    );
+}
+
+pub async fn label_address(
+    wallet: &WalletClient,
+    account_index: u64,
+    address_index: u64,
+    label: String,
+) {
+    wallet
+        .label_address(account_index, address_index, label)
+        .await
+        .unwrap()
+}
+
+pub async fn label_address_error_invalid_account_index(
+    wallet: &WalletClient,
+    account_index: u64,
+    address_index: u64,
+) {
+    let label_err = wallet
+        .label_address(account_index, address_index, "".to_string())
+        .await
+        .unwrap_err();
+    assert_eq!(
+        label_err.to_string(),
+        "Server error: account index is out of bound"
+    );
+}
+
+pub async fn label_address_error_invalid_address_index(
+    wallet: &WalletClient,
+    account_index: u64,
+    address_index: u64,
+) {
+    let label_err = wallet
+        .label_address(account_index, address_index, "".to_string())
+        .await
+        .unwrap_err();
+    assert_eq!(
+        label_err.to_string(),
+        "Server error: address index is out of bound"
+    );
+}
+
+pub async fn get_accounts(
+    wallet: &WalletClient,
+    tag: Option<String>,
+    expected_accounts_data: GetAccountsData,
+) {
+    let accounts_data = wallet.get_accounts(tag).await.unwrap();
+    assert_eq!(accounts_data, expected_accounts_data);
+}
+
+pub async fn get_accounts_error_unregistered_tag(wallet: &WalletClient, tag: String) {
+    let accounts_data_err = wallet.get_accounts(Some(tag.clone())).await.unwrap_err();
+    assert_eq!(
+        accounts_data_err.to_string(),
+        format!("Server error: Tag {tag} is unregistered.")
+    );
 }
