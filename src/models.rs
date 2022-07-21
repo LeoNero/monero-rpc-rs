@@ -141,7 +141,7 @@ impl From<GenerateBlocksResponseR> for GenerateBlocksResponse {
 }
 
 /// Return type of daemon RPC `get_transactions`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TransactionsResponse {
     pub credits: u64,
     pub top_hash: String,
@@ -154,7 +154,7 @@ pub struct TransactionsResponse {
 }
 
 /// Sub-type of [`TransactionsResponse`]'s return type of daemon RPC `get_transactions`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Transaction {
     pub as_hex: String,
     pub as_json: Option<String>, // needs to be parsed as JsonTransaction, but is received as a string

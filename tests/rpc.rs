@@ -15,17 +15,15 @@
 mod common;
 use common::main_tests;
 
-// With no transactions in array, with valid transactions in array, with non-existent txs, with invalid
-// txs hashes
-// TODO daemon_rpc.get_transactions success decode_as_json=true
-// TODO daemon_rpc.get_transactions success decode_as_json=false
-// TODO daemon_rpc.get_transactions success decode_as_json=None
-// TODO daemon_rpc.get_transactions success prune=true
-// TODO daemon_rpc.get_transactions success prune=false
-// TODO daemon_rpc.get_transactions success prune=None
-// TODO daemon_rpc.get_transactions error txs_hashes
+// all below with valid transactions
+// decode_as_json = None, prune = false
+// decode_as_json = None, prune = true
+// decode_as_json = false, prune = false
+// decode_as_json = false, prune = true
+// decode_as_json = true, prune = false
+// decode_as_json = true, prune = true
+// TODO daemon_rpc.get_transactions
 
-// other wallet test
 // TODO wallet.get_height success
 // TODO wallet.get_height error
 // TODO wallet.get_balance success
@@ -67,16 +65,16 @@ async fn main_functional_test() {
 
     // run those tests functions concurrently since the state one changes does not affect the state
     // the other one interacts with.
-    let handle1 = tokio::spawn(main_tests::basic_wallet_test());
+    // let handle1 = tokio::spawn(main_tests::basic_wallet_test());
     // let handle2 = tokio::spawn(async {
     //     main_tests::empty_blockchain_test().await;
     //     main_tests::non_empty_blockchain().await;
     // });
-    // let handle3 = tokio::spawn(async {
-    // main_tests::basic_daemon_rpc().await;
-    // });
+    let handle3 = tokio::spawn(async {
+        main_tests::basic_daemon_rpc_test().await;
+    });
 
-    let res = tokio::try_join!(handle1 /* handle2, handle3*/,);
+    let res = tokio::try_join!(/* handle1 */ /* handle2,*/ handle3);
     res.unwrap();
 
     // main_tests::all_clients_interaction_test().await;
