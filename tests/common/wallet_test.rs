@@ -1,4 +1,4 @@
-use monero_rpc::{GenerateFromKeysArgs, WalletClient};
+use monero_rpc::{GenerateFromKeysArgs, WalletClient, WalletCreation};
 
 fn get_random_name() -> String {
     use rand::distributions::Alphanumeric;
@@ -116,27 +116,40 @@ pub async fn open_wallet_error_wrong_password(
     assert_eq!(err.to_string(), "Server error: Failed to open wallet");
 }
 
-pub async fn generate_from_keys(wallet: &WalletClient, args: GenerateFromKeysArgs) {
-    assert!(false);
-}
-
-pub async fn generate_from_keys_error_key_already_used(
+pub async fn generate_from_keys(
     wallet: &WalletClient,
-    args: GenerateFromKeysArgs,
-) {
-    assert!(false);
+    mut args: GenerateFromKeysArgs,
+) -> (String, WalletCreation) {
+    let filename = get_random_name();
+
+    args.filename = filename.clone();
+
+    let expected_info = if let Some(_) = args.spendkey {
+        "Wallet has been generated successfully."
+    } else {
+        "Watch-only wallet has been generated successfully."
+    };
+    let wallet_creation = wallet.generate_from_keys(args).await.unwrap();
+    assert_eq!(wallet_creation.info, expected_info);
+
+    (filename, wallet_creation)
 }
 
 pub async fn generate_from_keys_error_filename_already_exists(
     wallet: &WalletClient,
     args: GenerateFromKeysArgs,
 ) {
-    assert!(false);
+    let wallet_creation_err = wallet.generate_from_keys(args).await.unwrap_err();
+    assert_eq!(
+        wallet_creation_err.to_string(),
+        "Server error: Wallet already exists."
+    );
 }
 
-pub async fn generate_from_keys_error_invalid_height(
+pub async fn generate_from_keys_error_invalid_address(
     wallet: &WalletClient,
     args: GenerateFromKeysArgs,
 ) {
-    assert!(false);
+    let wallet_creation_err = wallet.generate_from_keys(args).await.unwrap_err();
+    assert_eq!(wallet_creation_err.to_string(), "Server error: Failed to parse public address");
 }
