@@ -1,4 +1,4 @@
-use monero_rpc::{GenerateFromKeysArgs, WalletClient, WalletCreation};
+use monero_rpc::{AddressData, GenerateFromKeysArgs, WalletClient, WalletCreation};
 
 fn get_random_name() -> String {
     use rand::distributions::Alphanumeric;
@@ -151,5 +151,43 @@ pub async fn generate_from_keys_error_invalid_address(
     args: GenerateFromKeysArgs,
 ) {
     let wallet_creation_err = wallet.generate_from_keys(args).await.unwrap_err();
-    assert_eq!(wallet_creation_err.to_string(), "Server error: Failed to parse public address");
+    assert_eq!(
+        wallet_creation_err.to_string(),
+        "Server error: Failed to parse public address"
+    );
+}
+
+pub async fn get_address(
+    wallet: &WalletClient,
+    account: u64,
+    addresses: Option<Vec<u64>>,
+    expected_res: AddressData,
+) {
+    let addresses = wallet.get_address(account, addresses).await.unwrap();
+    assert_eq!(addresses, expected_res);
+}
+
+pub async fn get_address_error_no_wallet_file(wallet: &WalletClient) {
+    let get_address_err = wallet.get_address(0, None).await.unwrap_err();
+    assert_eq!(get_address_err.to_string(), "Server error: No wallet file");
+}
+
+pub async fn get_address_error_invalid_account_index(wallet: &WalletClient, account: u64) {
+    let get_address_err = wallet.get_address(account, None).await.unwrap_err();
+    assert_eq!(
+        get_address_err.to_string(),
+        "Server error: account index is out of bound"
+    );
+}
+
+pub async fn get_address_error_invalid_address_index(
+    wallet: &WalletClient,
+    account: u64,
+    addresses: Option<Vec<u64>>,
+) {
+    let get_address_err = wallet.get_address(account, addresses).await.unwrap_err();
+    assert_eq!(
+        get_address_err.to_string(),
+        "Server error: address index is out of bound"
+    );
 }

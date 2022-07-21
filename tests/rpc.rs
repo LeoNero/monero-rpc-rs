@@ -15,7 +15,10 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use hex::FromHex;
 use monero::{Address, Amount, KeyPair, Network, PrivateKey};
-use monero_rpc::{BlockHash, BlockHeaderResponse, BlockTemplate, GenerateFromKeysArgs, HashString};
+use monero_rpc::{
+    AddressData, BlockHash, BlockHeaderResponse, BlockTemplate, GenerateFromKeysArgs, HashString,
+    SubaddressData,
+};
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
@@ -55,8 +58,6 @@ fn setup_monero() -> (
 // TODO daemon_rpc.get_transactions error txs_hashes
 
 // basic wallet test
-// TODO wallet.get_address success
-// TODO wallet.get_address error
 // TODO wallet.get_address_index success
 // TODO wallet.get_address_index error
 // TODO wallet.create_address success
@@ -218,6 +219,36 @@ async fn basic_wallet_test() {
     };
     // generate from invalid address
     wallet_test::generate_from_keys_error_invalid_address(&wallet, generate_wallet_args_3).await;
+
+    wallet_test::close_wallet(&wallet).await;
+    wallet_test::get_address_error_no_wallet_file(&wallet).await;
+
+    wallet_test::open_wallet_with_no_or_empty_password(&wallet, &wallet_creation_from_key_pair_1.0)
+        .await;
+    wallet_test::get_address_error_invalid_account_index(&wallet, 10).await;
+    wallet_test::get_address_error_invalid_address_index(&wallet, 0, Some(vec![10])).await;
+
+    let expected_get_address_from_key_pair_1_subaddress_data = SubaddressData {
+        address: wallet_creation_from_key_pair_1.1.address,
+        address_index: 0,
+        label: "Primary account".to_string(),
+        used: false,
+    };
+    let expected_get_address_from_key_pair_1 = AddressData {
+        address: wallet_creation_from_key_pair_1.1.address,
+        addresses: vec![
+            expected_get_address_from_key_pair_1_subaddress_data.clone(),
+            expected_get_address_from_key_pair_1_subaddress_data.clone(),
+            expected_get_address_from_key_pair_1_subaddress_data,
+        ],
+    };
+    wallet_test::get_address(
+        &wallet,
+        0,
+        Some(vec![0, 0, 0]),
+        expected_get_address_from_key_pair_1,
+    )
+    .await;
 }
 
 async fn empty_blockchain() {
@@ -412,15 +443,6 @@ async fn readme_test() {
 * TODO
 #[tokio::test]
 async fn functional_wallet_test() {
-    // error below happens after closing wallet
-    assert_eq!(
-        format!(
-            "{}",
-            wallet.get_address(0, Some(vec![0])).await.err().unwrap()
-        ),
-        "Server error: No wallet file".to_string()
-    );
-
     wallet.open_wallet(spend_wallet_name.clone(), None).await.unwrap();
     wallet.get_balance(1, Some(vec![0])).await.unwrap();
     let address = wallet.get_address(0, Some(vec![0])).await.unwrap().address;

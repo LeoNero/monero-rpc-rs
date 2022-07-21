@@ -222,7 +222,7 @@ pub struct TransferData {
 }
 
 /// Sub-type of [`AddressData`]'s return type of wallet `get_address`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SubaddressData {
     pub address: Address,
     pub address_index: u64,
@@ -258,7 +258,7 @@ pub struct WalletCreation {
 }
 
 /// Return type of wallet `get_address`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AddressData {
     /// Address of the account queried.
     pub address: Address,
@@ -342,6 +342,8 @@ pub struct GenerateFromKeysArgs {
     pub address: Address,
     pub spendkey: Option<monero::PrivateKey>,
     pub viewkey: monero::PrivateKey,
+    // TODO it seems this argument is really optional, although the docs attach
+    // `https://www.getmonero.org/resources/developer-guides/wallet-rpc.html#generate_from_keys` do not mention it
     pub password: String,
     pub autosave_current: Option<bool>,
 }
