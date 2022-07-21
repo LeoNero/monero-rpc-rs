@@ -59,7 +59,7 @@ fn setup_monero() -> (
 
 // basic wallet test
 // TODO wallet.get_address_index success
-// TODO wallet.get_address_index error
+// TODO wallet.get_address_index error (invalid address network; invalid address)
 // TODO wallet.create_address success
 // TODO wallet.create_address error
 // TODO wallet.label_address success
@@ -247,6 +247,20 @@ async fn basic_wallet_test() {
         0,
         Some(vec![0, 0, 0]),
         expected_get_address_from_key_pair_1,
+    )
+    .await;
+
+    wallet_test::get_address_index(&wallet, wallet_creation_from_key_pair_1.1.address, (0, 0))
+        .await;
+    // get address from wallet different than the one opened
+    wallet_test::get_address_index_error_address_from_another_wallet(
+        &wallet,
+        wallet_creation_from_key_pair_2.1.address,
+    )
+    .await;
+    wallet_test::get_address_index_error_invalid_address(
+        &wallet,
+        Address::from_keypair(Network::Testnet, &key_pair_1),
     )
     .await;
 }

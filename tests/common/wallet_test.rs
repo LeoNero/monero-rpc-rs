@@ -1,3 +1,4 @@
+use monero::Address;
 use monero_rpc::{AddressData, GenerateFromKeysArgs, WalletClient, WalletCreation};
 
 fn get_random_name() -> String {
@@ -190,4 +191,29 @@ pub async fn get_address_error_invalid_address_index(
         get_address_err.to_string(),
         "Server error: address index is out of bound"
     );
+}
+
+pub async fn get_address_index(
+    wallet: &WalletClient,
+    address: Address,
+    expected_index: (u64, u64),
+) {
+    let index = wallet.get_address_index(address).await.unwrap();
+    assert_eq!(index, expected_index);
+}
+
+pub async fn get_address_index_error_address_from_another_wallet(
+    wallet: &WalletClient,
+    address: Address,
+) {
+    let index_err = wallet.get_address_index(address).await.unwrap_err();
+    assert_eq!(
+        index_err.to_string(),
+        "Server error: Address doesn't belong to the wallet"
+    );
+}
+
+pub async fn get_address_index_error_invalid_address(wallet: &WalletClient, address: Address) {
+    let index_err = wallet.get_address_index(address).await.unwrap_err();
+    assert_eq!(index_err.to_string(), "Server error: Invalid address");
 }
