@@ -263,8 +263,6 @@ async fn functional_wallet_test() {
         .await
         .unwrap();
 
-    use monero_rpc::{GetTransfersCategory, GetTransfersSelector};
-
     let mut category_selector: HashMap<GetTransfersCategory, bool> = HashMap::new();
     category_selector.insert(GetTransfersCategory::In, true);
     category_selector.insert(GetTransfersCategory::Out, true);
