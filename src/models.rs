@@ -176,7 +176,7 @@ pub struct JsonTransaction {
 }
 
 /// Sub-type of [`BalanceData`]'s return type of wallet `get_balance`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SubaddressBalanceData {
     pub address: Address,
     pub address_index: u64,
@@ -187,7 +187,7 @@ pub struct SubaddressBalanceData {
 }
 
 /// Return type of wallet `get_balance`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BalanceData {
     /// Balance amount of account queried.
     pub balance: u64,

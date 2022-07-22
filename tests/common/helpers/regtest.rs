@@ -107,6 +107,20 @@ pub async fn generate_blocks_error_invalid_address(
     );
 }
 
+pub async fn generate_blocks_error_subaddress_not_supported(
+    regtest: &RegtestDaemonClient,
+    wallet_address: Address,
+) {
+    let err = regtest
+        .generate_blocks(100, wallet_address)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Server error: Mining to subaddress is not supported yet"
+    );
+}
+
 pub async fn get_block_template(
     regtest: &RegtestDaemonClient,
     address: Address,

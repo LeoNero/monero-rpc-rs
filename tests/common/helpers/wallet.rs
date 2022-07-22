@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
-use monero::Address;
+use monero::{Address, PrivateKey};
 use monero_rpc::{
-    AddressData, GenerateFromKeysArgs, GetAccountsData, WalletClient, WalletCreation,
+    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, PrivateKeyType, WalletClient,
+    WalletCreation,
 };
 
 fn get_random_name() -> String {
@@ -301,4 +302,49 @@ pub async fn get_accounts_error_unregistered_tag(wallet: &WalletClient, tag: Str
         accounts_data_err.to_string(),
         format!("Server error: Tag {tag} is unregistered.")
     );
+}
+
+pub async fn get_height(wallet: &WalletClient, expected_height: u64) {
+    let height = wallet.get_height().await.unwrap();
+    assert_eq!(height.get(), expected_height);
+}
+
+pub async fn refresh(
+    wallet: &WalletClient,
+    start_height: Option<u64>,
+    expected_received_money: bool,
+) {
+    let res = wallet.refresh(start_height).await.unwrap();
+    assert_eq!(res.received_money, expected_received_money);
+}
+
+pub async fn refresh_error(wallet: &WalletClient) {
+    let err = wallet.refresh(None).await.unwrap_err();
+    assert_eq!(err.to_string(), "Server error: No wallet file");
+}
+
+pub async fn query_key(wallet: &WalletClient, key_type: PrivateKeyType, expected_key: PrivateKey) {
+    let key = wallet.query_key(key_type).await.unwrap();
+    assert_eq!(key, expected_key);
+}
+
+pub async fn query_key_error_query_spend_key_for_view_only_wallet(wallet: &WalletClient) {
+    let key_err = wallet.query_key(PrivateKeyType::Spend).await.unwrap_err();
+    assert_eq!(
+        key_err.to_string(),
+        "Server error: The wallet is watch-only. Cannot retrieve spend key."
+    );
+}
+
+pub async fn get_balance(
+    wallet: &WalletClient,
+    account_index: u64,
+    address_indices: Option<Vec<u64>>,
+    expected_balance_data: BalanceData,
+) {
+    let balance_data = wallet
+        .get_balance(account_index, address_indices)
+        .await
+        .unwrap();
+    assert_eq!(balance_data, expected_balance_data);
 }
