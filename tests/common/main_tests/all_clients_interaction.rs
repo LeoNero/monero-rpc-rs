@@ -4,7 +4,9 @@ use monero::{
     cryptonote::subaddress::{self, Index},
     Address, Amount, KeyPair, Network, ViewPair,
 };
-use monero_rpc::{BalanceData, PrivateKeyType, SubaddressBalanceData, TransferOptions};
+use monero_rpc::{
+    BalanceData, PrivateKeyType, SubaddressBalanceData, TransferOptions, TransferPriority,
+};
 
 use crate::common::helpers;
 
@@ -211,7 +213,12 @@ pub async fn test() {
     };
 
     destination.insert(wallet_2_subaddress_1, Amount::from_xmr(40.0).unwrap());
-    helpers::wallet::transfer_error_invalid_balance(&wallet, transfer_options).await;
+    helpers::wallet::transfer_error_invalid_balance(
+        &wallet,
+        destination.clone(),
+        transfer_options.clone(),
+    )
+    .await;
 
     // change to an amount that fits in the balance...
     destination
@@ -222,30 +229,36 @@ pub async fn test() {
     let wallet_3_testnet_address =
         Address::from_keypair(Network::Testnet, &helpers::get_keypair_1());
     destination.insert(wallet_3_testnet_address, Amount::from_xmr(40.0).unwrap());
-    helpers::wallet::transfer_error_invalid_address(&wallet, transfer_options).await;
+    helpers::wallet::transfer_error_invalid_address(
+        &wallet,
+        destination.clone(),
+        transfer_options.clone(),
+        wallet_3_testnet_address,
+    )
+    .await;
 
-    // ... remove the invalid address but add an wrong account_index...
+    // ... remove the invalid address but add a 'wrong' account_index...
     destination.remove(&wallet_3_testnet_address).unwrap();
     transfer_options.account_index = Some(10);
-    helpers::wallet::transfer_error_invalid_account_index(&wallet, transfer_options).await;
+    helpers::wallet::transfer_error_invalid_balance(
+        &wallet,
+        destination.clone(),
+        transfer_options.clone(),
+    )
+    .await;
 
-    // ... go back to correct account_index, but add invalid subaddr_index...
+    // ... go back to correct account_index, but add 'invalid' subaddr_index...
     transfer_options.account_index = None;
     transfer_options.subaddr_indices = Some(vec![10]);
-    helpers::wallet::transfer_error_invalid_subaddress_index(&wallet, transfer_options).await;
+    helpers::wallet::transfer_error_invalid_balance(
+        &wallet,
+        destination.clone(),
+        transfer_options.clone(),
+    )
+    .await;
 
-    // ... restore subaddr_index and add wrong mixin...
+    // ... restore subaddr_index and send transaction
     transfer_options.subaddr_indices = None;
-    transfer_options.mixin = Some(u64::MAX);
-    helpers::wallet::transfer_error_invalid_mixin(&wallet, transfer_options).await;
-
-    // ... restore mixin and add wrong ring_size...
-    transfer_options.mixin = None;
-    transfer_options.ring_size = Some(0);
-    helpers::wallet::transfer_error_invalid_ring_size(&wallet, transfer_options).await;
-
-    // ... restore ring size and send transaction...
-    transfer_options.ring_size = None;
     let transfer_1_data = helpers::wallet::transfer(
         &wallet,
         transfer_options,
@@ -255,14 +268,23 @@ pub async fn test() {
     .await;
     helpers::wallet::refresh(&wallet, None, true).await;
 
-    // ... check balances of wallet_1 and wallet_2_subaddress_1
+    // ... try to relay it again...
     // TODO
 
-    // ... try to relay it again...
+    // ... check balances of wallet_1 and wallet_2_subaddress_1
     // TODO
 
     // create another transaction and do not relay, then relay
     // TODO
+    // let mut transfer_options = TransferOptions {
+    //     account_index: None,
+    //     subaddr_indices: None,
+    //     mixin: None,
+    //     ring_size: None,
+    //     unlock_time: None,
+    //     payment_id: None,
+    //     do_not_relay: None,
+    // };
     // account_index != None, subaddr_indices != None, mixin != None, ring_size != None, payment_id =
     // Some(), do_not_relay = Some(true), then try try to relay again
 

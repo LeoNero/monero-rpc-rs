@@ -1,9 +1,9 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
-use monero::{Address, PrivateKey};
+use monero::{Address, Amount, PrivateKey};
 use monero_rpc::{
-    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, PrivateKeyType, WalletClient,
-    WalletCreation,
+    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, PrivateKeyType,
+    TransferOptions, TransferPriority, WalletClient, WalletCreation,
 };
 
 fn get_random_name() -> String {
@@ -347,4 +347,35 @@ pub async fn get_balance(
         .await
         .unwrap();
     assert_eq!(balance_data, expected_balance_data);
+}
+
+pub async fn transfer_error_invalid_balance(
+    wallet: &WalletClient,
+    destinations: HashMap<Address, Amount>,
+    options: TransferOptions,
+) {
+    let err = wallet
+        .transfer(destinations, TransferPriority::Default, options)
+        .await
+        .unwrap_err();
+    assert_eq!(err.to_string(), "Server error: not enough money");
+}
+
+pub async fn transfer_error_invalid_address(
+    wallet: &WalletClient,
+    destinations: HashMap<Address, Amount>,
+    options: TransferOptions,
+    wrong_address: Address,
+) {
+    let err = wallet
+        .transfer(destinations, TransferPriority::Default, options)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        format!(
+            "Server error: WALLET_RPC_ERROR_CODE_WRONG_ADDRESS: {}",
+            wrong_address
+        )
+    );
 }
