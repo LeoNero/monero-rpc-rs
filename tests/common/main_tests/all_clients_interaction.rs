@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use monero::{
     cryptonote::subaddress::{self, Index},
-    Address, KeyPair, Network, ViewPair,
+    Address, Amount, KeyPair, Network, ViewPair,
 };
-use monero_rpc::{BalanceData, PrivateKeyType, SubaddressBalanceData};
+use monero_rpc::{BalanceData, PrivateKeyType, SubaddressBalanceData, TransferOptions};
 
 use crate::common::helpers;
 
@@ -174,34 +176,102 @@ pub async fn test() {
         expected_balance_data_for_wallet_2_invalid_account,
     )
     .await;
+
+    // mine 59 blocks to another address, so that wallet_2 can have unlocked balance
+    let wallet_3_address = Address::from_keypair(Network::Mainnet, &helpers::get_keypair_1());
+    helpers::regtest::generate_blocks(&regtest, 59, wallet_3_address).await;
+    helpers::wallet::refresh(&wallet, None, false).await;
+    let expected_balance_data_for_wallet_2 = BalanceData {
+        balance: expected_balance,
+        unlocked_balance: expected_balance,
+        multisig_import_needed: false,
+        per_subaddress: vec![SubaddressBalanceData {
+            address: wallet_2_address,
+            address_index: 0,
+            balance: expected_balance,
+            label: "Primary account".to_string(),
+            num_unspent_outputs: 1,
+            unlocked_balance: expected_balance,
+        }],
+    };
+    helpers::wallet::get_balance(&wallet, 0, None, expected_balance_data_for_wallet_2).await;
+
+    // transfers and transactions
+    let mut destination: HashMap<Address, Amount> = HashMap::new();
+    destination.insert(wallet_1_address, Amount::from_xmr(5.0).unwrap());
+
+    let mut transfer_options = TransferOptions {
+        account_index: None,
+        subaddr_indices: None,
+        mixin: None,
+        ring_size: None,
+        unlock_time: None,
+        payment_id: None,
+        do_not_relay: None,
+    };
+
+    destination.insert(wallet_2_subaddress_1, Amount::from_xmr(40.0).unwrap());
+    helpers::wallet::transfer_error_invalid_balance(&wallet, transfer_options).await;
+
+    // change to an amount that fits in the balance...
+    destination
+        .entry(wallet_2_subaddress_1)
+        .and_modify(|e| *e = Amount::from_xmr(10.0).unwrap());
+
+    // ... but add an invalid address ...
+    let wallet_3_testnet_address =
+        Address::from_keypair(Network::Testnet, &helpers::get_keypair_1());
+    destination.insert(wallet_3_testnet_address, Amount::from_xmr(40.0).unwrap());
+    helpers::wallet::transfer_error_invalid_address(&wallet, transfer_options).await;
+
+    // ... remove the invalid address but add an wrong account_index...
+    destination.remove(&wallet_3_testnet_address).unwrap();
+    transfer_options.account_index = Some(10);
+    helpers::wallet::transfer_error_invalid_account_index(&wallet, transfer_options).await;
+
+    // ... go back to correct account_index, but add invalid subaddr_index...
+    transfer_options.account_index = None;
+    transfer_options.subaddr_indices = Some(vec![10]);
+    helpers::wallet::transfer_error_invalid_subaddress_index(&wallet, transfer_options).await;
+
+    // ... restore subaddr_index and add wrong mixin...
+    transfer_options.subaddr_indices = None;
+    transfer_options.mixin = Some(u64::MAX);
+    helpers::wallet::transfer_error_invalid_mixin(&wallet, transfer_options).await;
+
+    // ... restore mixin and add wrong ring_size...
+    transfer_options.mixin = None;
+    transfer_options.ring_size = Some(0);
+    helpers::wallet::transfer_error_invalid_ring_size(&wallet, transfer_options).await;
+
+    // ... restore ring size and send transaction...
+    transfer_options.ring_size = None;
+    let transfer_1_data = helpers::wallet::transfer(
+        &wallet,
+        transfer_options,
+        destination,
+        TransferPriority::Default,
+    )
+    .await;
+    helpers::wallet::refresh(&wallet, None, true).await;
+
+    // ... check balances of wallet_1 and wallet_2_subaddress_1
+    // TODO
+
+    // ... try to relay it again...
+    // TODO
+
+    // create another transaction and do not relay, then relay
+    // TODO
+    // account_index != None, subaddr_indices != None, mixin != None, ring_size != None, payment_id =
+    // Some(), do_not_relay = Some(true), then try try to relay again
+
+    // TODO test daemon_rpc
 }
 
 /*
 * TODO
-#[tokio::test]
 async fn functional_wallet_test() {
-    let mut destination: HashMap<Address, Amount> = HashMap::new();
-    destination.insert(address, Amount::from_xmr(0.00001).unwrap());
-
-    let transfer_options = monero_rpc::TransferOptions {
-        account_index: None,
-        subaddr_indices: None,
-        mixin: Some(10),
-        ring_size: Some(11),
-        unlock_time: Some(0),
-        payment_id: None,
-        do_not_relay: Some(true),
-    };
-
-    let transfer_data = wallet
-        .transfer(
-            destination,
-            monero_rpc::TransferPriority::Default,
-            transfer_options,
-        )
-        .await
-        .unwrap();
-
     wallet
         .relay_tx(transfer_data.tx_metadata.to_string())
         .await
@@ -222,33 +292,6 @@ async fn functional_wallet_test() {
     }
 
     wallet.export_key_images().await.unwrap();
-
-    wallet
-        .query_key(monero_rpc::PrivateKeyType::Spend)
-        .await
-        .unwrap();
-    let viewkey = wallet
-        .query_key(monero_rpc::PrivateKeyType::View)
-        .await
-        .unwrap();
-
-    match wallet
-        .generate_from_keys(monero_rpc::GenerateFromKeysArgs {
-            restore_height: Some(0),
-            filename: view_wallet_name.clone(),
-            address,
-            spendkey: None,
-            viewkey,
-            password: "".to_string(),
-            autosave_current: None,
-        })
-        .await
-    {
-        Ok(_) => {}
-        Err(err) => {
-            assert_eq!(format!("{}", err), "Server error: Wallet already exists.");
-        }
-    }
 
     wallet
         .open_wallet(view_wallet_name.clone(), None)
