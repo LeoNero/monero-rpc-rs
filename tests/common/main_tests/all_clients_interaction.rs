@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
+use hex::ToHex;
 use monero::{
     cryptonote::subaddress::{self, Index},
     util::address::PaymentId,
     Address, Amount, KeyPair, Network, ViewPair,
 };
 use monero_rpc::{
-    BalanceData, PrivateKeyType, SubaddressBalanceData, TransferOptions, TransferPriority,
+    BalanceData, PrivateKeyType, SubaddressBalanceData, Transaction, TransactionsResponse,
+    TransferOptions, TransferPriority,
 };
 
 use crate::common::helpers;
@@ -296,7 +298,66 @@ pub async fn test() {
     helpers::wallet::transfer_error_payment_id_obsolete(&wallet, destination, transfer_options)
         .await;
 
-    // TODO test daemon_rpc
+    // test daemon_rpc
+    helpers::daemon_rpc::get_transactions_as_hex_not_pruned(
+        &daemon_rpc,
+        vec![transfer_1_data.tx_hash.0],
+        TransactionsResponse {
+            credits: 0,
+            top_hash: "".to_string(),
+            status: "OK".to_string(),
+            missed_tx: None,
+            txs: Some(vec![Transaction {
+                as_hex: transfer_1_data.tx_blob.0.encode_hex(),
+                as_json: Some("".to_string()),
+                double_spend_seen: false,
+                in_pool: true,
+                tx_hash: transfer_1_data.tx_hash.clone(),
+                block_height: None,
+                block_timestamp: None,
+                output_indices: None,
+            }]),
+            txs_as_hex: Some(vec![transfer_1_data.tx_blob.0.encode_hex()]),
+            txs_as_json: None,
+            untrusted: false,
+        },
+    )
+    .await;
+    helpers::daemon_rpc::get_transactions_as_hex_pruned(
+        &daemon_rpc,
+        vec![transfer_1_data.tx_hash.0],
+        TransactionsResponse {
+            credits: 0,
+            top_hash: "".to_string(),
+            status: "OK".to_string(),
+            missed_tx: None,
+            txs: Some(vec![Transaction {
+                as_hex: "".to_string(),
+                as_json: Some("".to_string()),
+                double_spend_seen: false,
+                in_pool: true,
+                tx_hash: transfer_1_data.tx_hash.clone(),
+                block_height: None,
+                block_timestamp: None,
+                output_indices: None,
+            }]),
+            txs_as_hex: Some(vec!["".to_string()]),
+            txs_as_json: None,
+            untrusted: false,
+        },
+    )
+    .await;
+    // the functions below only test if the _json fields are not none
+    helpers::daemon_rpc::get_transactions_as_json_not_pruned(
+        &daemon_rpc,
+        vec![transfer_1_data.tx_hash.0],
+    )
+    .await;
+    helpers::daemon_rpc::get_transactions_as_json_pruned(
+        &daemon_rpc,
+        vec![transfer_1_data.tx_hash.0],
+    )
+    .await;
 }
 
 /*

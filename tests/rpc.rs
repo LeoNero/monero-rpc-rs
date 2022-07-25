@@ -15,15 +15,6 @@
 mod common;
 use common::main_tests;
 
-// all below with valid transactions
-// decode_as_json = None, prune = false
-// decode_as_json = None, prune = true
-// decode_as_json = false, prune = false
-// decode_as_json = false, prune = true
-// decode_as_json = true, prune = false
-// decode_as_json = true, prune = true
-// TODO daemon_rpc.get_transactions
-
 // TODO wallet.get_payments success
 // TODO wallet.get_payments error
 // TODO wallet.get_bulk_payments success
