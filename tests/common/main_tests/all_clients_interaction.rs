@@ -1,14 +1,16 @@
 use std::collections::HashMap;
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 use hex::ToHex;
 use monero::{
     cryptonote::subaddress::{self, Index},
     util::address::PaymentId,
-    Address, Amount, KeyPair, Network, ViewPair,
+    Address, Amount, Hash, KeyPair, Network, ViewPair,
 };
 use monero_rpc::{
-    BalanceData, PrivateKeyType, SubaddressBalanceData, Transaction, TransactionsResponse,
-    TransferOptions, TransferPriority,
+    BalanceData, GetTransfersCategory, GotTransfer, HashString, PrivateKeyType,
+    SubaddressBalanceData, SubaddressIndex, Transaction, TransactionsResponse, TransferHeight,
+    TransferOptions, TransferPriority, TransferType,
 };
 
 use crate::common::helpers;
@@ -358,40 +360,111 @@ pub async fn test() {
         vec![transfer_1_data.tx_hash.0],
     )
     .await;
+
+    // get_transfer
+    let expected_got_transfer = Some(GotTransfer {
+        address: wallet_2_address,
+        amount: 15000000000000,
+        confirmations: None,
+        double_spend_seen: false,
+        fee: transfer_1_data.fee,
+        height: TransferHeight::InPool,
+        note: "".to_string(),
+        payment_id: HashString(PaymentId::zero()),
+        subaddr_index: SubaddressIndex { major: 0, minor: 0 },
+        suggested_confirmations_threshold: 1,
+        // this is any date, since it will not be tested against anything
+        timestamp: DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc),
+        txid: HashString(transfer_1_data.tx_hash.0.as_ref().to_vec()),
+        transfer_type: GetTransfersCategory::Pending,
+        unlock_time: 0,
+    });
+    helpers::wallet::get_transfer(
+        &wallet,
+        transfer_1_data.tx_hash.0,
+        Some(0),
+        expected_got_transfer,
+    )
+    .await;
+    helpers::wallet::get_transfer_error_invalid_txid(&wallet, Hash::zero()).await;
+    helpers::wallet::get_transfer_error_invalid_account_index(
+        &wallet,
+        transfer_1_data.tx_hash.0,
+        Some(1000),
+    )
+    .await;
+
+    // check_tx_key tests
+    helpers::wallet::check_tx_key().await;
+    helpers::wallet::check_tx_key_error_invalid_txid().await;
+    helpers::wallet::check_tx_key_error_invalid_tx_key().await;
+    helpers::wallet::check_tx_key_error_invalid_address().await;
+
+    // export_key_images...
+    // let expected_key_images = vec![];
+    let key_images_1 = helpers::wallet::export_key_images().await;
+
+    // ... change to wallet with no key images and test what is returned
+    let temp_wallet = helpers::wallet::create_wallet_with_empty_password(&wallet).await;
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &temp_wallet).await;
+    helpers::wallet::refresh(&wallet, None, false).await;
+    helpers::wallet::export_key_images_error(&wallet).await;
+
+    // import_key_images
+    let expected_import_response = ();
+    helpers::wallet::import_key_images().await;
+    helpers::wallet::import_key_images_error_empty_vec().await;
+
+    // change to wallet_1, export key images, refresh, and test incoming_transfers  TODO
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1).await;
+    helpers::wallet::export_key_images().await;
+    helpers::wallet::refresh(&wallet, None, false).await;
+    let expected_incoming_transfers = {};
+    helpers::wallet::incoming_transfers(
+        // TransferType::All,
+        // Some(0),
+        // Some(vec![0, 1, 2]),
+        // expected_incoming_transfers,
+    )
+    .await;
+
+    // incoming_transfers errors
+    helpers::wallet::incoming_transfers_error_no_transfer_for_type(
+        // TransferType::Unavailable,
+        // None,
+        // None,
+    )
+    .await;
+    helpers::wallet::incoming_transfers_error_invalid_account_index(
+        // TransferType::All,
+        // Some(100),
+        // None,
+    )
+    .await;
+    helpers::wallet::incoming_transfers_error_invalid_subaddr_indices(
+        // TransferType::All,
+        // Some(0),
+        // vec![1000],
+    )
+    .await;
+
+    // wallet_1 is read-only, so `transfer` will create an unsigned_txset, which is then used in
+    // `sign_transfer`...
+    // let transfer_2_data = helpers::wallet::transfer(, destinations, options, priority).await;
+    // helpers::wallet::transfer(, destinations, options, priority).await;
+    let transfer_2_signed = helpers::wallet::sign_transfer().await;
+    helpers::wallet::sign_transfer_error_invalid_hex().await;
+    helpers::wallet::sign_transfer_error_invalid_unsigned_txset().await;
+
+    // ... and submit transfer after that
+    helpers::wallet::submit_transfer().await;
+    helpers::wallet::submit_transfer_error_invalid_hex().await;
+    helpers::wallet::submit_transfer_error_invalid_unsigned_txset().await;
 }
 
 /*
 * TODO
 async fn functional_wallet_test() {
-    match wallet
-        .check_tx_key(transfer_data.tx_hash.0, transfer_data.tx_key.0, address)
-        .await
-    {
-        Ok(_) => {}
-        Err(err) => {
-            let err_string = format!("{}", err);
-            assert!(
-                err_string == "invalid value: integer `0`, expected a nonzero u64".to_string()
-                    || err_string == "expected a non-zero value"
-            );
-        }
-    }
-
-    wallet.export_key_images().await.unwrap();
-
-    wallet
-        .open_wallet(view_wallet_name.clone(), None)
-        .await
-        .unwrap();
-    wallet.export_key_images().await.unwrap();
-
-    wallet.refresh(Some(0)).await.unwrap();
-
-    wallet
-        .incoming_transfers(monero_rpc::TransferType::All, Some(0), Some(vec![0, 1, 2]))
-        .await
-        .unwrap();
-
     let mut category_selector: HashMap<GetTransfersCategory, bool> = HashMap::new();
     category_selector.insert(GetTransfersCategory::In, true);
     category_selector.insert(GetTransfersCategory::Out, true);

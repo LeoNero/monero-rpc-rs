@@ -230,7 +230,7 @@ pub struct SubaddressData {
     pub used: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SubaddressIndex {
     pub major: u64,
     pub minor: u64,
@@ -463,7 +463,7 @@ impl<'de> Deserialize<'de> for TransferHeight {
 }
 
 /// Return type of wallet `get_transfer` and `get_transfers`.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct GotTransfer {
     /// Public address of the transfer.
     pub address: Address,

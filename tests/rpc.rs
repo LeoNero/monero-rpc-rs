@@ -21,22 +21,8 @@ use common::main_tests;
 // TODO wallet.get_bulk_payments error
 // TODO wallet.sweep_all success
 // TODO wallet.sweep_all error
-// TODO wallet.sign_transfer success
-// TODO wallet.sign_transfer error
-// TODO wallet.submit_transfer success
-// TODO wallet.submit_transfer error
-// TODO wallet.incoming_transfers success
-// TODO wallet.incoming_transfers error
 // TODO wallet.get_transfers success
 // TODO wallet.get_transfers error
-// TODO wallet.get_transfer success
-// TODO wallet.get_transfer error
-// TODO wallet.export_key_images success
-// TODO wallet.export_key_images error
-// TODO wallet.import_key_images success
-// TODO wallet.import_key_images error
-// TODO wallet.check_tx_key success
-// TODO wallet.check_tx_key error
 
 #[tokio::test]
 async fn main_functional_test() {

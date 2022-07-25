@@ -996,7 +996,7 @@ impl WalletClient {
             .await
     }
 
-    /// Show information about a transfer to/from this address. **Called `get_transfer_by_txid` in
+    /// Show information about a transfer to/from this address. **Calls `get_transfer_by_txid` in
     /// RPC.**
     pub async fn get_transfer(
         &self,

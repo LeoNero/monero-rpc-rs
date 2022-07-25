@@ -1,9 +1,9 @@
 use std::{collections::HashMap, str::FromStr};
 
-use monero::{Address, Amount, PrivateKey};
+use monero::{Address, Amount, Hash, PrivateKey};
 use monero_rpc::{
-    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, PrivateKeyType, TransferData,
-    TransferOptions, TransferPriority, WalletClient, WalletCreation,
+    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GotTransfer, PrivateKeyType,
+    TransferData, TransferOptions, TransferPriority, WalletClient, WalletCreation,
 };
 
 fn get_random_name() -> String {
@@ -424,4 +424,108 @@ pub async fn relay_tx_error_invalid_tx_metadata(wallet: &WalletClient, tx_metada
         err.to_string(),
         "Server error: Failed to parse tx metadata."
     );
+}
+
+pub async fn get_transfer(
+    wallet: &WalletClient,
+    txid: Hash,
+    account_index: Option<u64>,
+    mut expected_got_transfer: Option<GotTransfer>,
+) {
+    let transfer = wallet.get_transfer(txid, account_index).await.unwrap();
+
+    if let Some(ref mut t) = expected_got_transfer {
+        t.timestamp = transfer.as_ref().unwrap().timestamp;
+    }
+
+    assert_eq!(transfer, expected_got_transfer);
+}
+
+pub async fn get_transfer_error_invalid_txid(wallet: &WalletClient, txid: Hash) {
+    let transfer_err = wallet.get_transfer(txid, None).await.unwrap();
+    assert_eq!(transfer_err, None);
+}
+
+pub async fn get_transfer_error_invalid_account_index(
+    wallet: &WalletClient,
+    txid: Hash,
+    account_index: Option<u64>,
+) {
+    let transfer_err = wallet.get_transfer(txid, account_index).await.unwrap_err();
+    assert_eq!(
+        transfer_err.to_string(),
+        "Server error: Account index is out of bound"
+    );
+}
+
+pub async fn check_tx_key() {
+    assert!(false);
+}
+
+pub async fn check_tx_key_error_invalid_txid() {
+    assert!(false);
+}
+
+pub async fn check_tx_key_error_invalid_tx_key() {
+    assert!(false);
+}
+
+pub async fn check_tx_key_error_invalid_address() {
+    assert!(false);
+}
+
+pub async fn export_key_images() {
+    assert!(false);
+}
+
+pub async fn export_key_images_error(wallet: &WalletClient) {
+    assert!(false);
+}
+
+pub async fn import_key_images() {
+    assert!(false);
+}
+
+pub async fn import_key_images_error_empty_vec() {
+    assert!(false);
+}
+
+pub async fn incoming_transfers() {
+    assert!(false);
+}
+
+pub async fn incoming_transfers_error_no_transfer_for_type() {
+    assert!(false);
+}
+
+pub async fn incoming_transfers_error_invalid_account_index() {
+    assert!(false);
+}
+
+pub async fn incoming_transfers_error_invalid_subaddr_indices() {
+    assert!(false);
+}
+
+pub async fn sign_transfer() {
+    assert!(false);
+}
+
+pub async fn sign_transfer_error_invalid_hex() {
+    assert!(false);
+}
+
+pub async fn sign_transfer_error_invalid_unsigned_txset() {
+    assert!(false);
+}
+
+pub async fn submit_transfer() {
+    assert!(false);
+}
+
+pub async fn submit_transfer_error_invalid_hex() {
+    assert!(false);
+}
+
+pub async fn submit_transfer_error_invalid_unsigned_txset() {
+    assert!(false);
 }

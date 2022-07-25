@@ -90,3 +90,4 @@ pub async fn get_transactions_as_json_pruned(daemon_rpc: &DaemonRpcClient, txs_h
         .unwrap();
     test_tx_json_not_empty(transactions_response);
 }
+
