@@ -30,10 +30,6 @@ use common::main_tests;
 // TODO wallet.get_bulk_payments error
 // TODO wallet.sweep_all success
 // TODO wallet.sweep_all error
-// TODO wallet.relay_tx success
-// TODO wallet.relay_tx error
-// TODO wallet.transfer success
-// TODO wallet.transfer error
 // TODO wallet.sign_transfer success
 // TODO wallet.sign_transfer error
 // TODO wallet.submit_transfer success

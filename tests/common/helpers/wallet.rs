@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use monero::{Address, Amount, PrivateKey};
 use monero_rpc::{
-    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, PrivateKeyType,
+    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, PrivateKeyType, TransferData,
     TransferOptions, TransferPriority, WalletClient, WalletCreation,
 };
 
@@ -341,12 +341,28 @@ pub async fn get_balance(
     account_index: u64,
     address_indices: Option<Vec<u64>>,
     expected_balance_data: BalanceData,
-) {
+) -> BalanceData {
     let balance_data = wallet
         .get_balance(account_index, address_indices)
         .await
         .unwrap();
     assert_eq!(balance_data, expected_balance_data);
+    balance_data
+}
+
+pub async fn transfer(
+    wallet: &WalletClient,
+    destinations: HashMap<Address, Amount>,
+    options: TransferOptions,
+    priority: TransferPriority,
+) -> TransferData {
+    let t = wallet
+        .transfer(destinations.clone(), priority, options)
+        .await
+        .unwrap();
+    let dest_amount: u64 = destinations.into_values().map(|a| a.as_pico()).sum();
+    assert_eq!(t.amount, dest_amount);
+    t
 }
 
 pub async fn transfer_error_invalid_balance(
@@ -377,5 +393,35 @@ pub async fn transfer_error_invalid_address(
             "Server error: WALLET_RPC_ERROR_CODE_WRONG_ADDRESS: {}",
             wrong_address
         )
+    );
+}
+
+pub async fn transfer_error_payment_id_obsolete(
+    wallet: &WalletClient,
+    destinations: HashMap<Address, Amount>,
+    options: TransferOptions,
+) {
+    let err = wallet
+        .transfer(destinations, TransferPriority::Default, options)
+        .await
+        .unwrap_err();
+    assert_eq!(err.to_string(), "Server error: Standalone payment IDs are obsolete. Use subaddresses or integrated addresses instead");
+}
+
+pub async fn relay_tx(wallet: &WalletClient, tx_metadata_hex: String, expected_tx_hash: String) {
+    let res = wallet.relay_tx(tx_metadata_hex).await.unwrap();
+    assert_eq!(res.to_string(), expected_tx_hash);
+}
+
+pub async fn relay_tx_error_invalid_hex(wallet: &WalletClient, tx_metadata_hex: String) {
+    let err = wallet.relay_tx(tx_metadata_hex).await.unwrap_err();
+    assert_eq!(err.to_string(), "Server error: Failed to parse hex.");
+}
+
+pub async fn relay_tx_error_invalid_tx_metadata(wallet: &WalletClient, tx_metadata_hex: String) {
+    let err = wallet.relay_tx(tx_metadata_hex).await.unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Server error: Failed to parse tx metadata."
     );
 }

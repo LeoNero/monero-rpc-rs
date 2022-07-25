@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use monero::{
     cryptonote::subaddress::{self, Index},
+    util::address::PaymentId,
     Address, Amount, KeyPair, Network, ViewPair,
 };
 use monero_rpc::{
@@ -261,32 +262,39 @@ pub async fn test() {
     transfer_options.subaddr_indices = None;
     let transfer_1_data = helpers::wallet::transfer(
         &wallet,
+        destination.clone(),
         transfer_options,
-        destination,
         TransferPriority::Default,
     )
     .await;
-    helpers::wallet::refresh(&wallet, None, true).await;
+    helpers::wallet::refresh(&wallet, None, false).await;
 
     // ... try to relay it again...
-    // TODO
+    helpers::wallet::relay_tx(
+        &wallet,
+        transfer_1_data.tx_metadata.to_string(),
+        transfer_1_data.tx_hash.0.to_string(),
+    )
+    .await;
 
-    // ... check balances of wallet_1 and wallet_2_subaddress_1
-    // TODO
+    // relay_tx errors
+    helpers::wallet::relay_tx_error_invalid_hex(&wallet, "01234".to_string()).await;
+    let mut wrong_tx_metadata = transfer_1_data.tx_metadata.to_string();
+    wrong_tx_metadata.replace_range(100..105, "6");
+    helpers::wallet::relay_tx_error_invalid_tx_metadata(&wallet, wrong_tx_metadata).await;
 
-    // create another transaction and do not relay, then relay
-    // TODO
-    // let mut transfer_options = TransferOptions {
-    //     account_index: None,
-    //     subaddr_indices: None,
-    //     mixin: None,
-    //     ring_size: None,
-    //     unlock_time: None,
-    //     payment_id: None,
-    //     do_not_relay: None,
-    // };
-    // account_index != None, subaddr_indices != None, mixin != None, ring_size != None, payment_id =
-    // Some(), do_not_relay = Some(true), then try try to relay again
+    // obsolete payment ids
+    let transfer_options = TransferOptions {
+        account_index: Some(0),
+        subaddr_indices: Some(vec![1]),
+        mixin: Some(1000),
+        ring_size: Some(8),
+        unlock_time: Some(20),
+        payment_id: Some(PaymentId::zero()),
+        do_not_relay: Some(true),
+    };
+    helpers::wallet::transfer_error_payment_id_obsolete(&wallet, destination, transfer_options)
+        .await;
 
     // TODO test daemon_rpc
 }
@@ -294,11 +302,6 @@ pub async fn test() {
 /*
 * TODO
 async fn functional_wallet_test() {
-    wallet
-        .relay_tx(transfer_data.tx_metadata.to_string())
-        .await
-        .unwrap();
-
     match wallet
         .check_tx_key(transfer_data.tx_hash.0, transfer_data.tx_key.0, address)
         .await
