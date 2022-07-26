@@ -3,8 +3,9 @@ use std::{collections::HashMap, num::NonZeroU64, str::FromStr};
 use monero::{Address, Amount, Hash, PrivateKey};
 use monero_rpc::{
     AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GotTransfer,
-    IncomingTransfers, KeyImageImportResponse, PrivateKeyType, SignedKeyImage, TransferData,
-    TransferOptions, TransferPriority, TransferType, WalletClient, WalletCreation,
+    IncomingTransfers, KeyImageImportResponse, PrivateKeyType, SignedKeyImage,
+    SignedTransferOutput, TransferData, TransferOptions, TransferPriority, TransferType,
+    WalletClient, WalletCreation,
 };
 
 fn get_random_name() -> String {
@@ -574,26 +575,28 @@ pub async fn incoming_transfers(
     assert_eq!(incoming_transfers, expected_incoming_transfers);
 }
 
-pub async fn sign_transfer() {
-    assert!(false);
+pub async fn sign_transfer(wallet: &WalletClient, unsigned_txset: Vec<u8>) -> SignedTransferOutput {
+    let res = wallet.sign_transfer(unsigned_txset).await.unwrap();
+    assert!(!res.signed_txset.is_empty());
+    assert!(!res.tx_hash_list.is_empty());
+    assert!(!res.tx_raw_list.is_empty());
+    res
 }
 
-pub async fn sign_transfer_error_invalid_hex() {
-    assert!(false);
+pub async fn sign_transfer_error_cannot_load(wallet: &WalletClient, unsigned_txset: Vec<u8>) {
+    let err = wallet.sign_transfer(unsigned_txset).await.unwrap_err();
+    assert_eq!(err.to_string(), "Server error: cannot load unsigned_txset");
 }
 
-pub async fn sign_transfer_error_invalid_unsigned_txset() {
-    assert!(false);
+pub async fn submit_transfer(wallet: &WalletClient, tx_data_hex: Vec<u8>) {
+    let res = wallet.submit_transfer(tx_data_hex).await.unwrap();
+    assert!(!res.is_empty());
 }
 
-pub async fn submit_transfer() {
-    assert!(false);
-}
-
-pub async fn submit_transfer_error_invalid_hex() {
-    assert!(false);
-}
-
-pub async fn submit_transfer_error_invalid_unsigned_txset() {
-    assert!(false);
+pub async fn submit_transfer_error_parse(wallet: &WalletClient, tx_data_hex: Vec<u8>) {
+    let err = wallet.submit_transfer(tx_data_hex).await.unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Server error: Failed to parse signed tx data."
+    );
 }

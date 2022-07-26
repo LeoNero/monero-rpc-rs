@@ -590,20 +590,45 @@ pub async fn test() {
     )
     .await;
 
-    // wallet_1_view_only is read-only, so `transfer` will create an unsigned_txset, which is then used in
-    // `sign_transfer`...
-    // open wallet_1_view_only
-    // let transfer_2_data = helpers::wallet::transfer(&wallet, destinations, options, priority).await;
-    // ... we then create a 'full' wallet_1 (but with a different name), so that we can sign the
-    // transaction
-    // let transfer_2_signed = helpers::wallet::sign_transfer().await;
-    // helpers::wallet::sign_transfer_error_invalid_hex().await;
-    // helpers::wallet::sign_transfer_error_invalid_unsigned_txset().await;
+    // wallet_1_view_only is read-only, so `transfer` will create an unsigned_txset, which is then used in `sign_transfer`...
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_view_only).await;
+    let mut destination: HashMap<Address, Amount> = HashMap::new();
+    destination.insert(wallet_2_address, Amount::from_xmr(0.00001).unwrap());
+    let transfer_2_data_unsigned = helpers::wallet::transfer(
+        &wallet,
+        destination,
+        TransferOptions {
+            account_index: None,
+            subaddr_indices: None,
+            mixin: None,
+            ring_size: None,
+            unlock_time: None,
+            payment_id: None,
+            do_not_relay: None,
+        },
+        TransferPriority::Unimportant,
+    )
+    .await;
+    // ... we then go to `wallet_1_full`, so that we can sign the transaction
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_full).await;
+    let transfer_2_data_signed =
+        helpers::wallet::sign_transfer(&wallet, transfer_2_data_unsigned.unsigned_txset.0.clone())
+            .await;
+    helpers::wallet::sign_transfer_error_cannot_load(&wallet, vec![0, 1, 2, 3]).await;
+    let mut invalid_unsigned_txset = transfer_2_data_unsigned.unsigned_txset.0;
+    for e in invalid_unsigned_txset.iter_mut().take(25 + 1).skip(20) {
+        *e = 5;
+    }
+    helpers::wallet::sign_transfer_error_cannot_load(&wallet, invalid_unsigned_txset.clone()).await;
 
     // ... and submit transfer after that
-    // helpers::wallet::submit_transfer().await;
-    // helpers::wallet::submit_transfer_error_invalid_hex().await;
-    // helpers::wallet::submit_transfer_error_invalid_unsigned_txset().await;
+    helpers::wallet::submit_transfer(&wallet, transfer_2_data_signed.signed_txset.clone()).await;
+    helpers::wallet::submit_transfer_error_parse(&wallet, vec![0, 1, 2, 3]).await;
+    let mut invalid_signed_txset = transfer_2_data_signed.signed_txset;
+    for e in invalid_signed_txset.iter_mut().take(25 + 1).skip(20) {
+        *e = 5;
+    }
+    helpers::wallet::submit_transfer_error_parse(&wallet, invalid_signed_txset).await;
 }
 
 /*
