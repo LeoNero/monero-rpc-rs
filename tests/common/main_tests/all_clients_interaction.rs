@@ -3,14 +3,16 @@ use std::{collections::HashMap, num::NonZeroU64};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use hex::ToHex;
 use monero::{
+    consensus::Decodable,
     cryptonote::subaddress::{self, Index},
     util::address::PaymentId,
-    Address, Amount, Hash, KeyPair, Network, ViewPair,
+    Address, Amount, Hash, KeyPair, Network, TxIn, ViewPair,
 };
 use monero_rpc::{
-    BalanceData, GetTransfersCategory, GotTransfer, HashString, KeyImageImportResponse,
-    PrivateKeyType, SubaddressBalanceData, SubaddressIndex, Transaction, TransactionsResponse,
-    TransferHeight, TransferOptions, TransferPriority, TransferType,
+    BalanceData, GetTransfersCategory, GotTransfer, HashString, IncomingTransfer,
+    IncomingTransfers, KeyImageImportResponse, PrivateKeyType, SubaddressBalanceData,
+    SubaddressIndex, Transaction, TransactionsResponse, TransferHeight, TransferOptions,
+    TransferPriority, TransferType,
 };
 
 use crate::common::helpers;
@@ -18,25 +20,34 @@ use crate::common::helpers;
 pub async fn test() {
     let (regtest, daemon_rpc, wallet) = helpers::setup_monero();
 
-    let wallet_1_key_pair = helpers::get_keypair_3();
+    // it is important for this wallet to be non-deterministic instead of being generated from some
+    // keypair from some `helpers::get_keypair_`, so that any transfer this wallet receives won't
+    // be there when tests run again.
+    let wallet_1_full = helpers::wallet::create_wallet_with_empty_password(&wallet).await;
+    let wallet_1_key_pair = KeyPair {
+        view: wallet.query_key(PrivateKeyType::View).await.unwrap(),
+        spend: wallet.query_key(PrivateKeyType::Spend).await.unwrap(),
+    };
     let wallet_1_address = Address::from_keypair(Network::Mainnet, &wallet_1_key_pair);
-    let (wallet_1, wallet_1_creation_data) = helpers::wallet::generate_from_keys(
-        &wallet,
-        monero_rpc::GenerateFromKeysArgs {
-            restore_height: Some(0),
-            filename: "".to_string(), // empty, so random name is assigned
-            address: wallet_1_address,
-            spendkey: None,
-            viewkey: wallet_1_key_pair.view,
-            password: "".to_string(),
-            autosave_current: None,
-        },
-    )
-    .await;
+    let (wallet_1_view_only, wallet_1_view_only_creation_data) =
+        helpers::wallet::generate_from_keys(
+            &wallet,
+            monero_rpc::GenerateFromKeysArgs {
+                restore_height: Some(0),
+                filename: "".to_string(), // empty, so random name is assigned
+                address: wallet_1_address,
+                spendkey: None,
+                viewkey: wallet_1_key_pair.view,
+                password: "".to_string(),
+                autosave_current: None,
+            },
+        )
+        .await;
 
     helpers::wallet::query_key(&wallet, PrivateKeyType::View, wallet_1_key_pair.view).await;
     helpers::wallet::query_key_error_query_spend_key_for_view_only_wallet(&wallet).await;
 
+    // also important to be non-deterministic, for same reasons as wallet_1
     let wallet_2 = helpers::wallet::create_wallet_with_empty_password(&wallet).await;
     // when created, `height` returned by wallet.get_height is a bit inconsistent (sometimes
     // returns 1, sometimes returns the correct result), so we ignore it
@@ -448,11 +459,18 @@ pub async fn test() {
     // should be empty
     helpers::wallet::export_key_images_empty(&wallet).await;
 
-    // ... and change to wallet_1, refresh and export_key_images of it
-    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1).await;
-    // this varies, so no testing but that no error happens
-    helpers::wallet::refresh(&wallet, None, true).await;
-    let key_images_wallet_1 = helpers::wallet::export_key_images(&wallet).await;
+    // ... and change to wallet_1_full, refresh and export_key_images of it (it has offset 1, and
+    // returns empty vec)...
+    helpers::wallet::close_wallet(&wallet).await;
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_full).await;
+    helpers::wallet::refresh(&wallet, None, false).await;
+    helpers::wallet::export_key_images_empty(&wallet).await;
+
+    // ... now change to wallet_1_view_only, refresh, and export_key_images of it...
+    helpers::wallet::close_wallet(&wallet).await;
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_view_only).await;
+    helpers::wallet::refresh(&wallet, None, false).await;
+    helpers::wallet::export_key_images_empty(&wallet).await;
 
     // ... change to wallet with no key images and test what is returned ...
     let temp_wallet = helpers::wallet::create_wallet_with_empty_password(&wallet).await;
@@ -460,60 +478,132 @@ pub async fn test() {
     helpers::wallet::refresh(&wallet, None, false).await;
     helpers::wallet::export_key_images_empty(&wallet).await;
 
-    // ... go back to wallet_2 and import_key_images of wallet_1
+    // ... go back to wallet_2 and import_key_images of wallet_1_full, which is empty
     helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_2).await;
-    let expected_import_response = KeyImageImportResponse {
-        height: 0,
-        spent: 0,
-        unspent: 0,
-    };
-    helpers::wallet::import_key_images(&wallet, key_images_wallet_1, expected_import_response)
-        .await;
     helpers::wallet::import_key_images_empty_vec(&wallet).await;
 
-    // change to wallet_1, and test incoming_transfers
-    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1).await;
-    let expected_incoming_transfers = {};
+    // change to wallet_1_view_only, and test incoming_transfers...
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_view_only).await;
+    helpers::wallet::refresh(&wallet, None, false).await;
+    let expected_incoming_transfers = IncomingTransfers { transfers: None };
     helpers::wallet::incoming_transfers(
-        // TransferType::All,
-        // Some(0),
-        // Some(vec![0, 1, 2]),
-        // expected_incoming_transfers,
+        &wallet,
+        TransferType::All,
+        Some(0),
+        Some(vec![0, 1, 2]),
+        expected_incoming_transfers.clone(),
     )
     .await;
 
-    // incoming_transfers errors
-    helpers::wallet::incoming_transfers_error_no_transfer_for_type(
-        // TransferType::Unavailable,
-        // None,
-        // None,
-    )
-    .await;
-    helpers::wallet::incoming_transfers_error_invalid_account_index(
-        // TransferType::All,
-        // Some(100),
-        // None,
-    )
-    .await;
-    helpers::wallet::incoming_transfers_error_invalid_subaddr_indices(
-        // TransferType::All,
-        // Some(0),
-        // vec![1000],
+    // ...change to wallet_1_full, and test incoming_transfers
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_full).await;
+    helpers::wallet::refresh(&wallet, None, false).await;
+    let expected_incoming_transfers = IncomingTransfers { transfers: None };
+    helpers::wallet::incoming_transfers(
+        &wallet,
+        TransferType::All,
+        Some(0),
+        Some(vec![0, 1, 2]),
+        expected_incoming_transfers.clone(),
     )
     .await;
 
-    // wallet_1 is read-only, so `transfer` will create an unsigned_txset, which is then used in
+    // incoming_transfers variations
+    helpers::wallet::incoming_transfers(
+        &wallet,
+        TransferType::Unavailable,
+        None,
+        None,
+        expected_incoming_transfers.clone(),
+    )
+    .await;
+    helpers::wallet::incoming_transfers(
+        &wallet,
+        TransferType::All,
+        Some(100),
+        None,
+        expected_incoming_transfers.clone(),
+    )
+    .await;
+    helpers::wallet::incoming_transfers(
+        &wallet,
+        TransferType::All,
+        Some(0),
+        Some(vec![1000]),
+        expected_incoming_transfers.clone(),
+    )
+    .await;
+
+    // mine some blocks to settle transfers...
+    helpers::regtest::generate_blocks(&regtest, 10, wallet_3_address).await;
+    helpers::wallet::refresh(&wallet, None, true).await;
+
+    // ... and test export_key_images, import_key_images, and incoming_transfers for wallet_1_full again ...
+
+    // ... starting with export_key_images... note: export_key_images has offset 1 for wallet_1_full and returns empty vec; it has offset
+    // 0 for wallet_1_view_only and does not return empty.
+    helpers::wallet::export_key_images_empty(&wallet).await;
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_view_only).await;
+    helpers::wallet::refresh(&wallet, Some(0), true).await;
+    let wallet_1_view_only_key_images = helpers::wallet::export_key_images(&wallet).await;
+    // change to wallet_2 to import key images from wallet_1_view_only
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_2).await;
+    helpers::wallet::import_key_images(
+        &wallet,
+        wallet_1_view_only_key_images,
+        KeyImageImportResponse {
+            height: 0,
+            spent: 0,
+            unspent: 0,
+        },
+    )
+    .await;
+
+    // ...  and then incoming_transfers, for both wallet_1_full and wallet_1_view_only
+    let expected_incoming_transfers = IncomingTransfers {
+        transfers: Some(vec![IncomingTransfer {
+            global_index: 0, // this is any number, since we will not test against it
+            key_image: None, // this is different from the key_image in the Inputs for transfer_1_data, so we set it to None and do not test it
+            tx_size: None,   // any value, since we will not test againt it
+            amount: destination[&wallet_1_address].as_pico(),
+            spent: false,
+            subaddr_index: SubaddressIndex { major: 0, minor: 0 },
+            tx_hash: transfer_1_data.tx_hash,
+        }]),
+    };
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_view_only).await;
+    helpers::wallet::incoming_transfers(
+        &wallet,
+        TransferType::All,
+        Some(0),
+        Some(vec![0, 1, 2]),
+        expected_incoming_transfers.clone(),
+    )
+    .await;
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_full).await;
+    helpers::wallet::incoming_transfers(
+        &wallet,
+        TransferType::All,
+        Some(0),
+        Some(vec![0, 1, 2]),
+        expected_incoming_transfers,
+    )
+    .await;
+
+    // wallet_1_view_only is read-only, so `transfer` will create an unsigned_txset, which is then used in
     // `sign_transfer`...
-    // let transfer_2_data = helpers::wallet::transfer(, destinations, options, priority).await;
-    // helpers::wallet::transfer(, destinations, options, priority).await;
-    let transfer_2_signed = helpers::wallet::sign_transfer().await;
-    helpers::wallet::sign_transfer_error_invalid_hex().await;
-    helpers::wallet::sign_transfer_error_invalid_unsigned_txset().await;
+    // open wallet_1_view_only
+    // let transfer_2_data = helpers::wallet::transfer(&wallet, destinations, options, priority).await;
+    // ... we then create a 'full' wallet_1 (but with a different name), so that we can sign the
+    // transaction
+    // let transfer_2_signed = helpers::wallet::sign_transfer().await;
+    // helpers::wallet::sign_transfer_error_invalid_hex().await;
+    // helpers::wallet::sign_transfer_error_invalid_unsigned_txset().await;
 
     // ... and submit transfer after that
-    helpers::wallet::submit_transfer().await;
-    helpers::wallet::submit_transfer_error_invalid_hex().await;
-    helpers::wallet::submit_transfer_error_invalid_unsigned_txset().await;
+    // helpers::wallet::submit_transfer().await;
+    // helpers::wallet::submit_transfer_error_invalid_hex().await;
+    // helpers::wallet::submit_transfer_error_invalid_unsigned_txset().await;
 }
 
 /*

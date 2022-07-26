@@ -3,8 +3,8 @@ use std::{collections::HashMap, num::NonZeroU64, str::FromStr};
 use monero::{Address, Amount, Hash, PrivateKey};
 use monero_rpc::{
     AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GotTransfer,
-    KeyImageImportResponse, PrivateKeyType, SignedKeyImage, TransferData, TransferOptions,
-    TransferPriority, WalletClient, WalletCreation,
+    IncomingTransfers, KeyImageImportResponse, PrivateKeyType, SignedKeyImage, TransferData,
+    TransferOptions, TransferPriority, TransferType, WalletClient, WalletCreation,
 };
 
 fn get_random_name() -> String {
@@ -524,7 +524,11 @@ pub async fn export_key_images_empty(wallet: &WalletClient) {
     assert_eq!(signed_key_images, vec![]);
 }
 
-pub async fn import_key_images(wallet: &WalletClient, signed_key_images: Vec<SignedKeyImage>, expected_import_response: KeyImageImportResponse) {
+pub async fn import_key_images(
+    wallet: &WalletClient,
+    signed_key_images: Vec<SignedKeyImage>,
+    expected_import_response: KeyImageImportResponse,
+) {
     let res = wallet.import_key_images(vec![]).await.unwrap();
     assert_eq!(res, expected_import_response);
 }
@@ -539,20 +543,35 @@ pub async fn import_key_images_empty_vec(wallet: &WalletClient) {
     assert_eq!(res, expected_res);
 }
 
-pub async fn incoming_transfers() {
-    assert!(false);
-}
+pub async fn incoming_transfers(
+    wallet: &WalletClient,
+    transfer_type: TransferType,
+    account_index: Option<u64>,
+    subaddr_indices: Option<Vec<u64>>,
+    mut expected_incoming_transfers: IncomingTransfers,
+) {
+    let incoming_transfers = wallet
+        .incoming_transfers(transfer_type, account_index, subaddr_indices)
+        .await
+        .unwrap();
 
-pub async fn incoming_transfers_error_no_transfer_for_type() {
-    assert!(false);
-}
+    // we will not test agains `IncomingTransfer.global_index` nor `IncomingTransfer.tx_size` nor
+    // `IncomingTransfer::key_image`
+    if let Some(ref transfers) = incoming_transfers.transfers {
+        expected_incoming_transfers
+            .transfers
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, t)| {
+                t.global_index = transfers[i].global_index;
+                t.tx_size = transfers[i].tx_size;
+                t.key_image = transfers[i].key_image.clone();
+            });
+    }
 
-pub async fn incoming_transfers_error_invalid_account_index() {
-    assert!(false);
-}
-
-pub async fn incoming_transfers_error_invalid_subaddr_indices() {
-    assert!(false);
+    assert_eq!(incoming_transfers, expected_incoming_transfers);
 }
 
 pub async fn sign_transfer() {

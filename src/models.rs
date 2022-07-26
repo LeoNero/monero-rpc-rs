@@ -275,13 +275,13 @@ pub enum TransferType {
 }
 
 /// Return type of wallet `incoming_transfers`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct IncomingTransfers {
     pub transfers: Option<Vec<IncomingTransfer>>,
 }
 
 /// Sub-type of [`IncomingTransfers`]. Represent one incoming transfer.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct IncomingTransfer {
     pub amount: u64,
     pub global_index: u64,
