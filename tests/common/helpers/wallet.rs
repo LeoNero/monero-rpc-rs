@@ -1,9 +1,9 @@
 use std::{collections::HashMap, num::NonZeroU64, str::FromStr};
 
-use monero::{Address, Amount, Hash, PrivateKey};
+use monero::{util::address::PaymentId, Address, Amount, Hash, PrivateKey};
 use monero_rpc::{
     AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GotTransfer,
-    IncomingTransfers, KeyImageImportResponse, PrivateKeyType, SignedKeyImage,
+    IncomingTransfers, KeyImageImportResponse, Payment, PrivateKeyType, SignedKeyImage,
     SignedTransferOutput, TransferData, TransferOptions, TransferPriority, TransferType,
     WalletClient, WalletCreation,
 };
@@ -599,4 +599,23 @@ pub async fn submit_transfer_error_parse(wallet: &WalletClient, tx_data_hex: Vec
         err.to_string(),
         "Server error: Failed to parse signed tx data."
     );
+}
+
+pub async fn get_payments(
+    wallet: &WalletClient,
+    payment_id: PaymentId,
+    expected_payment_ids: Vec<Payment>,
+) {
+    let payment_ids = wallet.get_payments(payment_id).await.unwrap();
+    assert_eq!(payment_ids, expected_payment_ids);
+}
+
+pub async fn get_bulk_payments(
+    wallet: &WalletClient,
+    payment_ids: Vec<PaymentId>,
+    min_block_height: u64,
+    expected_payment_ids: Vec<Payment>,
+) {
+    let payment_ids = wallet.get_bulk_payments(payment_ids, min_block_height).await.unwrap();
+    assert_eq!(payment_ids, expected_payment_ids);
 }

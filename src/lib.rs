@@ -719,14 +719,21 @@ impl WalletClient {
 
     /// Get a list of incoming payments using a given payment id.
     pub async fn get_payments(&self, payment_id: PaymentId) -> anyhow::Result<Vec<Payment>> {
+        #[derive(Deserialize)]
+        struct Rsp {
+            #[serde(default)]
+            payments: Vec<Payment>,
+        }
+
         let params = empty().chain(once((
             "payment_id",
             HashString(payment_id).to_string().into(),
         )));
 
         self.inner
-            .request("get_payments", RpcParams::map(params))
+            .request::<Rsp>("get_payments", RpcParams::map(params))
             .await
+            .map(|rsp| rsp.payments)
     }
 
     /// Get a list of incoming payments using a given payment id, or a list of payments ids, from a
@@ -736,6 +743,7 @@ impl WalletClient {
     pub async fn get_bulk_payments(
         &self,
         payment_ids: Vec<PaymentId>,
+        // It seems that the `min_block_height` argument is really optional, but the docs on the Monero website do not mention it
         min_block_height: u64,
     ) -> anyhow::Result<Vec<Payment>> {
         #[derive(Deserialize)]

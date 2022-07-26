@@ -237,7 +237,7 @@ pub struct SubaddressIndex {
 }
 
 /// Return type of wallet `get_payments`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Payment {
     pub payment_id: HashString<PaymentId>,
     pub tx_hash: HashString<CryptoNoteHash>,
@@ -342,8 +342,8 @@ pub struct GenerateFromKeysArgs {
     pub address: Address,
     pub spendkey: Option<monero::PrivateKey>,
     pub viewkey: monero::PrivateKey,
-    // TODO it seems this argument is really optional, although the docs attach
-    // `https://www.getmonero.org/resources/developer-guides/wallet-rpc.html#generate_from_keys` do not mention it
+    // TODO it seems this argument is really optional, although the doc at
+    // `https://www.getmonero.org/resources/developer-guides/wallet-rpc.html#generate_from_keys` does not mention it
     pub password: String,
     pub autosave_current: Option<bool>,
 }

@@ -10,7 +10,7 @@ use monero::{
 };
 use monero_rpc::{
     BalanceData, GetTransfersCategory, GotTransfer, HashString, IncomingTransfer,
-    IncomingTransfers, KeyImageImportResponse, PrivateKeyType, SubaddressBalanceData,
+    IncomingTransfers, KeyImageImportResponse, Payment, PrivateKeyType, SubaddressBalanceData,
     SubaddressIndex, Transaction, TransactionsResponse, TransferHeight, TransferOptions,
     TransferPriority, TransferType,
 };
@@ -215,8 +215,8 @@ pub async fn test() {
     helpers::wallet::get_balance(&wallet, 0, None, expected_balance_data_for_wallet_2).await;
 
     // transfers and transactions
-    let mut destination: HashMap<Address, Amount> = HashMap::new();
-    destination.insert(wallet_1_address, Amount::from_xmr(5.0).unwrap());
+    let mut transfer_1_destination: HashMap<Address, Amount> = HashMap::new();
+    transfer_1_destination.insert(wallet_1_address, Amount::from_xmr(5.0).unwrap());
 
     let mut transfer_options = TransferOptions {
         account_index: None,
@@ -228,37 +228,39 @@ pub async fn test() {
         do_not_relay: None,
     };
 
-    destination.insert(wallet_2_subaddress_1, Amount::from_xmr(40.0).unwrap());
+    transfer_1_destination.insert(wallet_2_subaddress_1, Amount::from_xmr(40.0).unwrap());
     helpers::wallet::transfer_error_invalid_balance(
         &wallet,
-        destination.clone(),
+        transfer_1_destination.clone(),
         transfer_options.clone(),
     )
     .await;
 
     // change to an amount that fits in the balance...
-    destination
+    transfer_1_destination
         .entry(wallet_2_subaddress_1)
         .and_modify(|e| *e = Amount::from_xmr(10.0).unwrap());
 
     // ... but add an invalid address ...
     let wallet_3_testnet_address =
         Address::from_keypair(Network::Testnet, &helpers::get_keypair_1());
-    destination.insert(wallet_3_testnet_address, Amount::from_xmr(40.0).unwrap());
+    transfer_1_destination.insert(wallet_3_testnet_address, Amount::from_xmr(40.0).unwrap());
     helpers::wallet::transfer_error_invalid_address(
         &wallet,
-        destination.clone(),
+        transfer_1_destination.clone(),
         transfer_options.clone(),
         wallet_3_testnet_address,
     )
     .await;
 
     // ... remove the invalid address but add a 'wrong' account_index...
-    destination.remove(&wallet_3_testnet_address).unwrap();
+    transfer_1_destination
+        .remove(&wallet_3_testnet_address)
+        .unwrap();
     transfer_options.account_index = Some(10);
     helpers::wallet::transfer_error_invalid_balance(
         &wallet,
-        destination.clone(),
+        transfer_1_destination.clone(),
         transfer_options.clone(),
     )
     .await;
@@ -268,7 +270,7 @@ pub async fn test() {
     transfer_options.subaddr_indices = Some(vec![10]);
     helpers::wallet::transfer_error_invalid_balance(
         &wallet,
-        destination.clone(),
+        transfer_1_destination.clone(),
         transfer_options.clone(),
     )
     .await;
@@ -277,7 +279,7 @@ pub async fn test() {
     transfer_options.subaddr_indices = None;
     let transfer_1_data = helpers::wallet::transfer(
         &wallet,
-        destination.clone(),
+        transfer_1_destination.clone(),
         transfer_options,
         TransferPriority::Default,
     )
@@ -310,7 +312,7 @@ pub async fn test() {
     };
     helpers::wallet::transfer_error_payment_id_obsolete(
         &wallet,
-        destination.clone(),
+        transfer_1_destination.clone(),
         transfer_options,
     )
     .await;
@@ -415,7 +417,7 @@ pub async fn test() {
         transfer_1_data.tx_hash.0,
         transfer_1_data.tx_key.0.clone(),
         wallet_1_address,
-        (0, true, destination[&wallet_1_address].as_pico()),
+        (0, true, transfer_1_destination[&wallet_1_address].as_pico()),
     )
     .await;
     helpers::wallet::check_tx_key(
@@ -535,6 +537,7 @@ pub async fn test() {
     .await;
 
     // mine some blocks to settle transfers...
+    let height_before_settling_transfer_1 = wallet.get_height().await.unwrap().get();
     helpers::regtest::generate_blocks(&regtest, 10, wallet_3_address).await;
     helpers::wallet::refresh(&wallet, None, true).await;
 
@@ -544,7 +547,9 @@ pub async fn test() {
     // 0 for wallet_1_view_only and does not return empty.
     helpers::wallet::export_key_images_empty(&wallet).await;
     helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_view_only).await;
-    helpers::wallet::refresh(&wallet, Some(0), true).await;
+    wallet.refresh(Some(0)).await.unwrap();
+    // Below is commented because it sometimes returns `true`, and sometimes `false`
+    // helpers::wallet::refresh(&wallet, Some(0), true).await;
     let wallet_1_view_only_key_images = helpers::wallet::export_key_images(&wallet).await;
     // change to wallet_2 to import key images from wallet_1_view_only
     helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_2).await;
@@ -565,10 +570,10 @@ pub async fn test() {
             global_index: 0, // this is any number, since we will not test against it
             key_image: None, // this is different from the key_image in the Inputs for transfer_1_data, so we set it to None and do not test it
             tx_size: None,   // any value, since we will not test againt it
-            amount: destination[&wallet_1_address].as_pico(),
+            amount: transfer_1_destination[&wallet_1_address].as_pico(),
             spent: false,
             subaddr_index: SubaddressIndex { major: 0, minor: 0 },
-            tx_hash: transfer_1_data.tx_hash,
+            tx_hash: transfer_1_data.tx_hash.clone(),
         }]),
     };
     helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_view_only).await;
@@ -592,11 +597,11 @@ pub async fn test() {
 
     // wallet_1_view_only is read-only, so `transfer` will create an unsigned_txset, which is then used in `sign_transfer`...
     helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1_view_only).await;
-    let mut destination: HashMap<Address, Amount> = HashMap::new();
-    destination.insert(wallet_2_address, Amount::from_xmr(0.00001).unwrap());
+    let mut transfer_2_destination: HashMap<Address, Amount> = HashMap::new();
+    transfer_2_destination.insert(wallet_2_address, Amount::from_xmr(0.00001).unwrap());
     let transfer_2_data_unsigned = helpers::wallet::transfer(
         &wallet,
-        destination,
+        transfer_2_destination,
         TransferOptions {
             account_index: None,
             subaddr_indices: None,
@@ -629,6 +634,33 @@ pub async fn test() {
         *e = 5;
     }
     helpers::wallet::submit_transfer_error_parse(&wallet, invalid_signed_txset).await;
+
+    // get_payments and get_bulk_payments
+    let expected_payment_ids = vec![Payment {
+        address: wallet_1_address,
+        payment_id: HashString(PaymentId::zero()),
+        tx_hash: transfer_1_data.tx_hash,
+        amount: transfer_1_destination[&wallet_1_address].as_pico(),
+        unlock_time: 0,
+        subaddr_index: SubaddressIndex { major: 0, minor: 0 },
+        block_height: height_before_settling_transfer_1,
+    }];
+    helpers::wallet::get_payments(&wallet, PaymentId::zero(), expected_payment_ids.clone()).await;
+    helpers::wallet::get_payments(&wallet, PaymentId::repeat_byte(10), vec![]).await;
+    helpers::wallet::get_bulk_payments(
+        &wallet,
+        vec![PaymentId::zero(), PaymentId::repeat_byte(10)],
+        0,
+        expected_payment_ids,
+    )
+    .await;
+    helpers::wallet::get_bulk_payments(
+        &wallet,
+        vec![PaymentId::zero(), PaymentId::repeat_byte(10)],
+        u64::MAX - 100000,
+        vec![],
+    )
+    .await;
 }
 
 /*

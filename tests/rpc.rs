@@ -15,10 +15,6 @@
 mod common;
 use common::main_tests;
 
-// TODO wallet.get_payments success
-// TODO wallet.get_payments error
-// TODO wallet.get_bulk_payments success
-// TODO wallet.get_bulk_payments error
 // TODO wallet.sweep_all success
 // TODO wallet.sweep_all error
 // TODO wallet.get_transfers success
