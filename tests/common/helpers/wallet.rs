@@ -2,8 +2,9 @@ use std::{collections::HashMap, num::NonZeroU64, str::FromStr};
 
 use monero::{Address, Amount, Hash, PrivateKey};
 use monero_rpc::{
-    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GotTransfer, PrivateKeyType,
-    TransferData, TransferOptions, TransferPriority, WalletClient, WalletCreation,
+    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GotTransfer,
+    KeyImageImportResponse, PrivateKeyType, SignedKeyImage, TransferData, TransferOptions,
+    TransferPriority, WalletClient, WalletCreation,
 };
 
 fn get_random_name() -> String {
@@ -511,20 +512,31 @@ pub async fn check_tx_key_error_invalid_address(
     assert_eq!(err.to_string(), "Server error: Invalid address");
 }
 
-pub async fn export_key_images() {
-    assert!(false);
+pub async fn export_key_images(wallet: &WalletClient) -> Vec<SignedKeyImage> {
+    // signed_key_images varies, so nothing to test here but that it is not throwing any error
+    let signed_key_images = wallet.export_key_images().await.unwrap();
+    assert!(!signed_key_images.is_empty());
+    signed_key_images
 }
 
-pub async fn export_key_images_error(wallet: &WalletClient) {
-    assert!(false);
+pub async fn export_key_images_empty(wallet: &WalletClient) {
+    let signed_key_images = wallet.export_key_images().await.unwrap();
+    assert_eq!(signed_key_images, vec![]);
 }
 
-pub async fn import_key_images() {
-    assert!(false);
+pub async fn import_key_images(wallet: &WalletClient, signed_key_images: Vec<SignedKeyImage>, expected_import_response: KeyImageImportResponse) {
+    let res = wallet.import_key_images(vec![]).await.unwrap();
+    assert_eq!(res, expected_import_response);
 }
 
-pub async fn import_key_images_error_empty_vec() {
-    assert!(false);
+pub async fn import_key_images_empty_vec(wallet: &WalletClient) {
+    let res = wallet.import_key_images(vec![]).await.unwrap();
+    let expected_res = KeyImageImportResponse {
+        height: 0,
+        spent: 0,
+        unspent: 0,
+    };
+    assert_eq!(res, expected_res);
 }
 
 pub async fn incoming_transfers() {

@@ -507,7 +507,7 @@ pub struct SignedTransferOutput {
 
 /// Used to export and import signed key images. Return type of wallet `export_key_images` and
 /// argument type of wallet `import_key_images`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SignedKeyImage {
     /// The key image.
     pub key_image: Vec<u8>,
@@ -516,7 +516,7 @@ pub struct SignedKeyImage {
 }
 
 /// Return type of wallet `import_key_images`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct KeyImageImportResponse {
     pub height: u64,
     /// Amount spent from key images.

@@ -8,9 +8,9 @@ use monero::{
     Address, Amount, Hash, KeyPair, Network, ViewPair,
 };
 use monero_rpc::{
-    BalanceData, GetTransfersCategory, GotTransfer, HashString, PrivateKeyType,
-    SubaddressBalanceData, SubaddressIndex, Transaction, TransactionsResponse, TransferHeight,
-    TransferOptions, TransferPriority, TransferType,
+    BalanceData, GetTransfersCategory, GotTransfer, HashString, KeyImageImportResponse,
+    PrivateKeyType, SubaddressBalanceData, SubaddressIndex, Transaction, TransactionsResponse,
+    TransferHeight, TransferOptions, TransferPriority, TransferType,
 };
 
 use crate::common::helpers;
@@ -415,7 +415,11 @@ pub async fn test() {
         // wallet_2 has just one output of value expected_balance;
         // it uses such outout in the transaction
         // thus, the last value of the tuple is the change
-        (0, true, expected_balance - transfer_1_data.amount - transfer_1_data.fee),
+        (
+            0,
+            true,
+            expected_balance - transfer_1_data.amount - transfer_1_data.fee,
+        ),
     )
     .await;
     helpers::wallet::check_tx_key_error_invalid_txid(
@@ -435,30 +439,40 @@ pub async fn test() {
     helpers::wallet::check_tx_key_error_invalid_address(
         &wallet,
         transfer_1_data.tx_hash.0,
-        transfer_1_data.tx_key.0,
+        transfer_1_data.tx_key.0.clone(),
         wallet_3_testnet_address,
     )
     .await;
 
-    // export_key_images...
-    // let expected_key_images = vec![];
-    let key_images_1 = helpers::wallet::export_key_images().await;
+    // export_key_images for wallet_2...
+    // should be empty
+    helpers::wallet::export_key_images_empty(&wallet).await;
 
-    // ... change to wallet with no key images and test what is returned
+    // ... and change to wallet_1, refresh and export_key_images of it
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1).await;
+    // this varies, so no testing but that no error happens
+    helpers::wallet::refresh(&wallet, None, true).await;
+    let key_images_wallet_1 = helpers::wallet::export_key_images(&wallet).await;
+
+    // ... change to wallet with no key images and test what is returned ...
     let temp_wallet = helpers::wallet::create_wallet_with_empty_password(&wallet).await;
     helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &temp_wallet).await;
     helpers::wallet::refresh(&wallet, None, false).await;
-    helpers::wallet::export_key_images_error(&wallet).await;
+    helpers::wallet::export_key_images_empty(&wallet).await;
 
-    // import_key_images
-    let expected_import_response = ();
-    helpers::wallet::import_key_images().await;
-    helpers::wallet::import_key_images_error_empty_vec().await;
+    // ... go back to wallet_2 and import_key_images of wallet_1
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_2).await;
+    let expected_import_response = KeyImageImportResponse {
+        height: 0,
+        spent: 0,
+        unspent: 0,
+    };
+    helpers::wallet::import_key_images(&wallet, key_images_wallet_1, expected_import_response)
+        .await;
+    helpers::wallet::import_key_images_empty_vec(&wallet).await;
 
-    // change to wallet_1, export key images, refresh, and test incoming_transfers  TODO
+    // change to wallet_1, and test incoming_transfers
     helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_1).await;
-    helpers::wallet::export_key_images().await;
-    helpers::wallet::refresh(&wallet, None, false).await;
     let expected_incoming_transfers = {};
     helpers::wallet::incoming_transfers(
         // TransferType::All,
