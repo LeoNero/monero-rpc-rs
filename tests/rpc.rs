@@ -15,9 +15,6 @@
 mod common;
 use common::main_tests;
 
-// TODO wallet.sweep_all success
-// TODO wallet.sweep_all error
-
 #[tokio::test]
 async fn main_functional_test() {
     // TODO uncomment all

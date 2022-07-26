@@ -11,8 +11,8 @@ use monero::{
 use monero_rpc::{
     BalanceData, BlockHeightFilter, GetTransfersCategory, GetTransfersSelector, GotTransfer,
     HashString, IncomingTransfer, IncomingTransfers, KeyImageImportResponse, Payment,
-    PrivateKeyType, SubaddressBalanceData, SubaddressIndex, Transaction, TransactionsResponse,
-    TransferHeight, TransferOptions, TransferPriority, TransferType,
+    PrivateKeyType, SubaddressBalanceData, SubaddressIndex, SweepAllArgs, Transaction,
+    TransactionsResponse, TransferHeight, TransferOptions, TransferPriority, TransferType,
 };
 
 use crate::common::helpers;
@@ -728,57 +728,43 @@ pub async fn test() {
     .await;
 
     // sweep_all
+    helpers::wallet::sweep_all_error_no_unlocked_balance(
+        &wallet,
+        SweepAllArgs {
+            address: wallet_2_address,
+            account_index: 0,
+            subaddr_indices: None,
+            priority: TransferPriority::Default,
+            mixin: 0,
+            ring_size: 0,
+            unlock_time: 0,
+            get_tx_keys: None,
+            below_amount: None,
+            do_not_relay: None,
+            get_tx_hex: None,
+            get_tx_metadata: None,
+        },
+    )
+    .await;
+
+    helpers::wallet::open_wallet_with_no_or_empty_password(&wallet, &wallet_2).await;
+    helpers::wallet::refresh(&wallet, Some(0), true).await;
+    helpers::wallet::sweep_all(
+        &wallet,
+        SweepAllArgs {
+            address: wallet_1_address,
+            account_index: 0,
+            subaddr_indices: Some(vec![0, 1, 2]),
+            priority: TransferPriority::Default,
+            mixin: 5,
+            ring_size: 10,
+            unlock_time: 1,
+            below_amount: Some(100000000000000),
+            do_not_relay: Some(false),
+            get_tx_keys: None,
+            get_tx_metadata: Some(false),
+            get_tx_hex: Some(true),
+        },
+    )
+    .await;
 }
-
-/*
-* TODO
-async fn functional_wallet_test() {
-    let mut destination: HashMap<Address, Amount> = HashMap::new();
-    destination.insert(address, Amount::from_xmr(0.00001).unwrap());
-
-    let transfer_options = monero_rpc::TransferOptions {
-        account_index: Some(0),
-        subaddr_indices: Some(vec![0]),
-        mixin: Some(10),
-        ring_size: Some(11),
-        unlock_time: Some(0),
-        payment_id: None,
-        do_not_relay: Some(true),
-    };
-
-    let transfer_data = wallet
-        .transfer(
-            destination,
-            monero_rpc::TransferPriority::Default,
-            transfer_options,
-        )
-        .await
-        .unwrap();
-
-    wallet
-        .open_wallet(spend_wallet_name.clone(), None)
-        .await
-        .unwrap();
-    wallet.refresh(Some(0)).await.unwrap();
-
-    let sweep_args = monero_rpc::SweepAllArgs {
-        address,
-        account_index: 0,
-        subaddr_indices: None,
-        priority: monero_rpc::TransferPriority::Default,
-        mixin: 10,
-        ring_size: 11,
-        unlock_time: 0,
-        get_tx_keys: None,
-        below_amount: None,
-        do_not_relay: None,
-        get_tx_hex: None,
-        get_tx_metadata: None,
-    };
-    wallet.sweep_all(sweep_args).await.unwrap();
-
-    let res = wallet
-        .sign_transfer(transfer_data.unsigned_txset.0)
-        .await
-        .unwrap();
-} */

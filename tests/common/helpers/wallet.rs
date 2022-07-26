@@ -4,8 +4,8 @@ use monero::{util::address::PaymentId, Address, Amount, Hash, PrivateKey};
 use monero_rpc::{
     AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GetTransfersCategory,
     GetTransfersSelector, GotTransfer, IncomingTransfers, KeyImageImportResponse, Payment,
-    PrivateKeyType, SignedKeyImage, SignedTransferOutput, TransferData, TransferOptions,
-    TransferPriority, TransferType, WalletClient, WalletCreation,
+    PrivateKeyType, SignedKeyImage, SignedTransferOutput, SweepAllArgs, TransferData,
+    TransferOptions, TransferPriority, TransferType, WalletClient, WalletCreation,
 };
 
 fn get_random_name() -> String {
@@ -653,4 +653,40 @@ pub async fn get_transfers(
             categories_left
         );
     }
+}
+
+pub async fn sweep_all(wallet: &WalletClient, args: SweepAllArgs) {
+    let res = wallet.sweep_all(args.clone()).await.unwrap();
+    assert!(!res.tx_hash_list.is_empty());
+    assert!(!res.amount_list.is_empty());
+    assert!(!res.fee_list.is_empty());
+
+    assert_eq!(res.multisig_txset, "");
+    assert_eq!(res.unsigned_txset, "");
+
+    if let Some(true) = args.get_tx_keys {
+        assert!(!res.tx_key_list.unwrap().is_empty());
+    } else {
+        assert!(res.tx_key_list.is_none());
+    }
+
+    if let Some(true) = args.get_tx_metadata {
+        assert!(!res.tx_metadata_list.unwrap().is_empty());
+    } else {
+        assert!(res.tx_metadata_list.is_none());
+    }
+
+    if let Some(true) = args.get_tx_hex {
+        assert!(!res.tx_blob_list.unwrap().is_empty());
+    } else {
+        assert!(res.tx_blob_list.is_none());
+    }
+}
+
+pub async fn sweep_all_error_no_unlocked_balance(wallet: &WalletClient, args: SweepAllArgs) {
+    let err = wallet.sweep_all(args).await.unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Server error: No unlocked balance in the specified account"
+    );
 }
