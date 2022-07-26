@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, num::NonZeroU64};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
 use hex::ToHex;
@@ -297,8 +297,12 @@ pub async fn test() {
         payment_id: Some(PaymentId::zero()),
         do_not_relay: Some(true),
     };
-    helpers::wallet::transfer_error_payment_id_obsolete(&wallet, destination, transfer_options)
-        .await;
+    helpers::wallet::transfer_error_payment_id_obsolete(
+        &wallet,
+        destination.clone(),
+        transfer_options,
+    )
+    .await;
 
     // test daemon_rpc
     helpers::daemon_rpc::get_transactions_as_hex_not_pruned(
@@ -394,11 +398,47 @@ pub async fn test() {
     )
     .await;
 
-    // check_tx_key tests
-    helpers::wallet::check_tx_key().await;
-    helpers::wallet::check_tx_key_error_invalid_txid().await;
-    helpers::wallet::check_tx_key_error_invalid_tx_key().await;
-    helpers::wallet::check_tx_key_error_invalid_address().await;
+    // check_tx_key
+    helpers::wallet::check_tx_key(
+        &wallet,
+        transfer_1_data.tx_hash.0,
+        transfer_1_data.tx_key.0.clone(),
+        wallet_1_address,
+        (0, true, destination[&wallet_1_address].as_pico()),
+    )
+    .await;
+    helpers::wallet::check_tx_key(
+        &wallet,
+        transfer_1_data.tx_hash.0,
+        transfer_1_data.tx_key.0.clone(),
+        wallet_2_address,
+        // wallet_2 has just one output of value expected_balance;
+        // it uses such outout in the transaction
+        // thus, the last value of the tuple is the change
+        (0, true, expected_balance - transfer_1_data.amount - transfer_1_data.fee),
+    )
+    .await;
+    helpers::wallet::check_tx_key_error_invalid_txid(
+        &wallet,
+        Hash::zero(),
+        transfer_1_data.tx_key.0.clone(),
+        wallet_2_address,
+    )
+    .await;
+    helpers::wallet::check_tx_key_error_invalid_tx_key(
+        &wallet,
+        transfer_1_data.tx_hash.0,
+        vec![1, 2, 3, 4],
+        wallet_2_address,
+    )
+    .await;
+    helpers::wallet::check_tx_key_error_invalid_address(
+        &wallet,
+        transfer_1_data.tx_hash.0,
+        transfer_1_data.tx_key.0,
+        wallet_3_testnet_address,
+    )
+    .await;
 
     // export_key_images...
     // let expected_key_images = vec![];

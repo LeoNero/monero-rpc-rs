@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, num::NonZeroU64, str::FromStr};
 
 use monero::{Address, Amount, Hash, PrivateKey};
 use monero_rpc::{
@@ -458,20 +458,57 @@ pub async fn get_transfer_error_invalid_account_index(
     );
 }
 
-pub async fn check_tx_key() {
-    assert!(false);
+pub async fn check_tx_key(
+    wallet: &WalletClient,
+    txid: Hash,
+    tx_key: Vec<u8>,
+    address: Address,
+    expected_res: (u64, bool, u64),
+) {
+    let res = wallet.check_tx_key(txid, tx_key, address).await.unwrap();
+    assert_eq!(res, expected_res);
 }
 
-pub async fn check_tx_key_error_invalid_txid() {
-    assert!(false);
+pub async fn check_tx_key_error_invalid_txid(
+    wallet: &WalletClient,
+    txid: Hash,
+    tx_key: Vec<u8>,
+    address: Address,
+) {
+    let err = wallet
+        .check_tx_key(txid, tx_key, address)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Server error: Failed to get transaction from daemon"
+    );
 }
 
-pub async fn check_tx_key_error_invalid_tx_key() {
-    assert!(false);
+pub async fn check_tx_key_error_invalid_tx_key(
+    wallet: &WalletClient,
+    txid: Hash,
+    tx_key: Vec<u8>,
+    address: Address,
+) {
+    let err = wallet
+        .check_tx_key(txid, tx_key, address)
+        .await
+        .unwrap_err();
+    assert_eq!(err.to_string(), "Server error: Tx key has invalid format");
 }
 
-pub async fn check_tx_key_error_invalid_address() {
-    assert!(false);
+pub async fn check_tx_key_error_invalid_address(
+    wallet: &WalletClient,
+    txid: Hash,
+    tx_key: Vec<u8>,
+    address: Address,
+) {
+    let err = wallet
+        .check_tx_key(txid, tx_key, address)
+        .await
+        .unwrap_err();
+    assert_eq!(err.to_string(), "Server error: Invalid address");
 }
 
 pub async fn export_key_images() {
