@@ -17,8 +17,6 @@ use common::main_tests;
 
 // TODO wallet.sweep_all success
 // TODO wallet.sweep_all error
-// TODO wallet.get_transfers success
-// TODO wallet.get_transfers error
 
 #[tokio::test]
 async fn main_functional_test() {

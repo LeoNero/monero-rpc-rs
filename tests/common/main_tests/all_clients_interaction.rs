@@ -9,10 +9,10 @@ use monero::{
     Address, Amount, Hash, KeyPair, Network, TxIn, ViewPair,
 };
 use monero_rpc::{
-    BalanceData, GetTransfersCategory, GotTransfer, HashString, IncomingTransfer,
-    IncomingTransfers, KeyImageImportResponse, Payment, PrivateKeyType, SubaddressBalanceData,
-    SubaddressIndex, Transaction, TransactionsResponse, TransferHeight, TransferOptions,
-    TransferPriority, TransferType,
+    BalanceData, BlockHeightFilter, GetTransfersCategory, GetTransfersSelector, GotTransfer,
+    HashString, IncomingTransfer, IncomingTransfers, KeyImageImportResponse, Payment,
+    PrivateKeyType, SubaddressBalanceData, SubaddressIndex, Transaction, TransactionsResponse,
+    TransferHeight, TransferOptions, TransferPriority, TransferType,
 };
 
 use crate::common::helpers;
@@ -661,29 +661,78 @@ pub async fn test() {
         vec![],
     )
     .await;
+
+    // get_transfers
+    let mut expected_count_per_category: HashMap<GetTransfersCategory, u64> = HashMap::new();
+
+    let mut category_selector: HashMap<GetTransfersCategory, bool> = HashMap::new();
+    category_selector.insert(GetTransfersCategory::In, true);
+    category_selector.insert(GetTransfersCategory::Pending, true);
+    category_selector.insert(GetTransfersCategory::Out, false);
+    category_selector.insert(GetTransfersCategory::Failed, false);
+    category_selector.insert(GetTransfersCategory::Pool, false);
+    category_selector.insert(GetTransfersCategory::Block, false);
+
+    let mut selector = GetTransfersSelector {
+        category_selector,
+        account_index: Some(0),
+        subaddr_indices: Some(vec![0, 1, 2]),
+        block_height_filter: None,
+    };
+    expected_count_per_category.insert(GetTransfersCategory::In, 1);
+    expected_count_per_category.insert(GetTransfersCategory::Pending, 1);
+    helpers::wallet::get_transfers(
+        &wallet,
+        selector.clone(),
+        expected_count_per_category.clone(),
+    )
+    .await;
+
+    selector.block_height_filter = Some(BlockHeightFilter {
+        min_height: Some(5),
+        max_height: Some(10),
+    });
+    expected_count_per_category.remove(&GetTransfersCategory::In);
+    helpers::wallet::get_transfers(
+        &wallet,
+        selector.clone(),
+        expected_count_per_category.clone(),
+    )
+    .await;
+
+    selector.block_height_filter = Some(BlockHeightFilter {
+        min_height: Some(10),
+        max_height: Some(2),
+    });
+    helpers::wallet::get_transfers(
+        &wallet,
+        selector.clone(),
+        expected_count_per_category.clone(),
+    )
+    .await;
+
+    selector
+        .category_selector
+        .entry(GetTransfersCategory::In)
+        .and_modify(|c| *c = false);
+    selector
+        .category_selector
+        .entry(GetTransfersCategory::Pending)
+        .and_modify(|c| *c = false);
+    expected_count_per_category.remove(&GetTransfersCategory::Pending);
+    helpers::wallet::get_transfers(
+        &wallet,
+        selector.clone(),
+        expected_count_per_category.clone(),
+    )
+    .await;
+
+    // sweep_all
 }
 
 /*
 * TODO
 async fn functional_wallet_test() {
-    let mut category_selector: HashMap<GetTransfersCategory, bool> = HashMap::new();
-    category_selector.insert(GetTransfersCategory::In, true);
-    category_selector.insert(GetTransfersCategory::Out, true);
-    category_selector.insert(GetTransfersCategory::Pending, true);
-    category_selector.insert(GetTransfersCategory::Pool, true);
-
-    let selector = GetTransfersSelector {
-        category_selector,
-        subaddr_indices: None,
-        account_index: None,
-        block_height_filter: Some(monero_rpc::BlockHeightFilter {
-            min_height: Some(0),
-            max_height: None,
-        }),
-    };
-
-    wallet.get_transfers(selector).await.unwrap();
-
     let mut destination: HashMap<Address, Amount> = HashMap::new();
     destination.insert(address, Amount::from_xmr(0.00001).unwrap());
 

@@ -2,10 +2,10 @@ use std::{collections::HashMap, num::NonZeroU64, str::FromStr};
 
 use monero::{util::address::PaymentId, Address, Amount, Hash, PrivateKey};
 use monero_rpc::{
-    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GotTransfer,
-    IncomingTransfers, KeyImageImportResponse, Payment, PrivateKeyType, SignedKeyImage,
-    SignedTransferOutput, TransferData, TransferOptions, TransferPriority, TransferType,
-    WalletClient, WalletCreation,
+    AddressData, BalanceData, GenerateFromKeysArgs, GetAccountsData, GetTransfersCategory,
+    GetTransfersSelector, GotTransfer, IncomingTransfers, KeyImageImportResponse, Payment,
+    PrivateKeyType, SignedKeyImage, SignedTransferOutput, TransferData, TransferOptions,
+    TransferPriority, TransferType, WalletClient, WalletCreation,
 };
 
 fn get_random_name() -> String {
@@ -616,6 +616,41 @@ pub async fn get_bulk_payments(
     min_block_height: u64,
     expected_payment_ids: Vec<Payment>,
 ) {
-    let payment_ids = wallet.get_bulk_payments(payment_ids, min_block_height).await.unwrap();
+    let payment_ids = wallet
+        .get_bulk_payments(payment_ids, min_block_height)
+        .await
+        .unwrap();
     assert_eq!(payment_ids, expected_payment_ids);
+}
+
+pub async fn get_transfers(
+    wallet: &WalletClient,
+    selector: GetTransfersSelector,
+    expected_count_per_category: HashMap<GetTransfersCategory, u64>,
+) {
+    let mut transfers = wallet.get_transfers(selector).await.unwrap();
+
+    for (category, expected_count) in expected_count_per_category.into_iter() {
+        if let Some(transfers_in_category) = transfers.remove(&category) {
+            assert_eq!(transfers_in_category.len(), expected_count as usize);
+        } else {
+            let category_str: &str = category.into();
+            panic!(
+                "GetTransfersCategory '{}' not in returned `transfers`",
+                category_str
+            );
+        }
+    }
+
+    if !transfers.is_empty() {
+        let categories_left = transfers
+            .into_keys()
+            .map(|c| c.into())
+            .collect::<Vec<&str>>();
+        let categories_left = categories_left.join(", ");
+        panic!(
+            "`expected_count_per_category` does not have the following GetTransfersCategory as keys: {}.",
+            categories_left
+        );
+    }
 }
